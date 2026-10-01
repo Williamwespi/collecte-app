@@ -1,4 +1,76 @@
-<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}Collecteteller{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}"></head><body>
-<header><div class="wrap nav"><a class="brand" href="/">Collecteteller <small>Diaconie</small></a><nav><a href="/">Overzicht</a><a href="/doelen">Collectedoelen</a><a href="/excel">Excel</a></nav></div></header>
-<main class="wrap">{% block content %}{% endblock %}</main>
-<footer class="wrap">Digitale collectetelling</footer></body></html>
+<!doctype html>
+
+<html lang="nl">
+
+<head>
+
+    <meta charset="utf-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>
+        {% block title %}
+        Collecteteller
+        {% endblock %}
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="/static/css/style.css"
+    >
+
+</head>
+
+<body>
+
+    <header>
+
+        <div class="wrap nav">
+
+            <a
+                class="brand"
+                href="/"
+            >
+                Collecteteller
+                <small>Diaconie</small>
+            </a>
+
+            <nav>
+
+                <a href="/">
+                    Overzicht
+                </a>
+
+                <a href="/doelen">
+                    Collectedoelen
+                </a>
+
+                <a href="/excel">
+                    Excel
+                </a>
+
+            </nav>
+
+        </div>
+
+    </header>
+
+
+    <main class="wrap">
+
+        {% block content %}
+        {% endblock %}
+
+    </main>
+
+
+    <footer class="wrap">
+        Digitale collectetelling
+    </footer>
+
+</body>
+
+</html>
