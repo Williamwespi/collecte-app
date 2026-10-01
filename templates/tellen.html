@@ -1,0 +1,432 @@
+```html
+{% extends 'base.html' %}
+
+{% block title %}Telling {{ datum }}{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+    <span class="eyebrow">TELFORMULIER</span>
+    <h1>{{ datum }}</h1>
+    <p>Vul de aantallen in. De bedragen worden direct voor je uitgerekend.</p>
+</div>
+
+
+<form method="post" class="stack" id="telform">
+
+    <input type="hidden" name="datum" value="{{ datum }}">
+
+
+    {% for n in (1,2,3) %}
+
+    {% set doelwaarde = bestaand['doel_' ~ n] if bestaand else (doel['doel_' ~ n] if doel else '') %}
+
+    <section
+        class="card collecte {% if n == 3 %}collecte-extra{% endif %}"
+        id="collecte{{ n }}"
+    >
+
+        <div class="collecte-head">
+
+            <div>
+                <span>Collecte {{ n }}</span>
+
+                {% if n == 3 %}
+                <small>
+                    Extra collecte · optioneel en handmatig aanpasbaar
+                </small>
+                {% endif %}
+            </div>
+
+            <input
+                class="goal"
+                name="doel_{{ n }}"
+                {% if n < 3 %}required{% endif %}
+                value="{{ doelwaarde }}"
+                placeholder="{% if n == 3 %}Geen extra collecte{% else %}Collectedoel{% endif %}"
+            >
+
+        </div>
+
+
+        <!-- ==========================================
+             COLLECTEBONNEN
+        =========================================== -->
+
+        <h3>Collectebonnen</h3>
+
+        <div class="grid2">
+
+            <label>
+                Blauw · € 0,75
+
+                <input
+                    inputmode="numeric"
+                    type="number"
+                    min="0"
+                    value="{{ bestaand['c' ~ n ~ '_blauw'] if bestaand and bestaand['c' ~ n ~ '_blauw'] else '' }}"
+                    name="c{{ n }}_blauw"
+                    data-value="0.75"
+                    data-type="bonnen"
+                >
+            </label>
+
+
+            <label>
+                Groen · € 1,00
+
+                <input
+                    inputmode="numeric"
+                    type="number"
+                    min="0"
+                    value="{{ bestaand['c' ~ n ~ '_groen'] if bestaand and bestaand['c' ~ n ~ '_groen'] else '' }}"
+                    name="c{{ n }}_groen"
+                    data-value="1"
+                    data-type="bonnen"
+                >
+            </label>
+
+        </div>
+
+
+        <div class="subtotal">
+            <span>Totaal collectebonnen</span>
+            <strong id="bonnenTotal{{ n }}">€ 0,00</strong>
+        </div>
+
+
+        <!-- ==========================================
+             BRIEFGELD
+        =========================================== -->
+
+        <h3>Briefgeld</h3>
+
+        <div class="money-grid">
+
+            {% for v in (5,10,20,50) %}
+
+            <label>
+                € {{ v }}
+
+                <input
+                    inputmode="numeric"
+                    type="number"
+                    min="0"
+                    value="{{ bestaand['c' ~ n ~ '_munt_' ~ v] if bestaand and bestaand['c' ~ n ~ '_munt_' ~ v] else '' }}"
+                    name="c{{ n }}_munt_{{ v }}"
+                    data-value="{{ v }}"
+                    data-type="briefgeld"
+                >
+            </label>
+
+            {% endfor %}
+
+        </div>
+
+
+        <div class="subtotal">
+            <span>Totaal briefgeld</span>
+            <strong id="briefgeldTotal{{ n }}">€ 0,00</strong>
+        </div>
+
+
+        <!-- ==========================================
+             MUNTGELD
+        =========================================== -->
+
+        <h3>Muntgeld</h3>
+
+        <label>
+            Totaal muntgeld
+
+            <input
+                inputmode="decimal"
+                type="number"
+                min="0"
+                step="0.01"
+                value="{{ bestaand['c' ~ n ~ '_overig'] if bestaand and bestaand['c' ~ n ~ '_overig'] else '' }}"
+                name="c{{ n }}_overig"
+                data-direct="1"
+                data-type="muntgeld"
+                placeholder="0,00"
+            >
+        </label>
+
+
+        <!-- ==========================================
+             TOTALEN
+        =========================================== -->
+
+        <div class="subtotal">
+            <span>Totaal contant</span>
+            <strong id="contantTotal{{ n }}">€ 0,00</strong>
+        </div>
+
+
+        <div class="subtotal">
+            <span>Totaal collecte {{ n }}</span>
+            <strong id="total{{ n }}">€ 0,00</strong>
+        </div>
+
+    </section>
+
+    {% endfor %}
+
+
+    <!-- ==========================================
+         AFRONDING
+    =========================================== -->
+
+    <section class="card">
+
+        <h3>Afronding</h3>
+
+        <label>
+            Extra storting
+            <small>bijvoorbeeld koffiegeld</small>
+
+            <input
+                inputmode="decimal"
+                type="number"
+                min="0"
+                step="0.01"
+                value="{{ bestaand.extra_storting if bestaand else 0 }}"
+                name="extra_storting"
+            >
+        </label>
+
+
+        <label>
+            Opmerkingen
+
+            <textarea
+                name="opmerkingen"
+                rows="3"
+            >{{ bestaand.opmerkingen if bestaand else '' }}</textarea>
+        </label>
+
+
+        <label>
+            Geteld door
+
+            <input
+                name="geteld_door"
+                required
+                value="{{ bestaand.geteld_door if bestaand else '' }}"
+                placeholder="Naam/namen"
+            >
+        </label>
+
+    </section>
+
+
+    <!-- ==========================================
+         ZONDAGTOTAAL
+    =========================================== -->
+
+    <section class="live-total">
+
+        <span>Totaal van deze zondag</span>
+
+        <strong id="grandTotal">
+            € 0,00
+        </strong>
+
+        <small>
+            Inclusief eventuele derde collecte en extra storting
+        </small>
+
+    </section>
+
+
+    <div class="sticky-submit">
+
+        <button
+            class="btn"
+            type="submit"
+        >
+            Telling controleren
+        </button>
+
+    </div>
+
+</form>
+
+
+<script>
+
+const formatter = new Intl.NumberFormat(
+    'nl-NL',
+    {
+        style: 'currency',
+        currency: 'EUR'
+    }
+);
+
+
+/* ==========================================
+   BEREKEN ÉÉN COLLECTE
+========================================== */
+
+function collecteTotaal(n) {
+
+    let bonnen = 0;
+    let briefgeld = 0;
+    let muntgeld = 0;
+
+
+    /* Collectebonnen */
+
+    document
+        .querySelectorAll(
+            `[name^="c${n}_"][data-type="bonnen"]`
+        )
+        .forEach(input => {
+
+            const aantal =
+                parseFloat(input.value) || 0;
+
+            const waarde =
+                parseFloat(input.dataset.value) || 0;
+
+            bonnen += aantal * waarde;
+
+        });
+
+
+    /* Briefgeld */
+
+    document
+        .querySelectorAll(
+            `[name^="c${n}_"][data-type="briefgeld"]`
+        )
+        .forEach(input => {
+
+            const aantal =
+                parseFloat(input.value) || 0;
+
+            const waarde =
+                parseFloat(input.dataset.value) || 0;
+
+            briefgeld += aantal * waarde;
+
+        });
+
+
+    /* Muntgeld */
+
+    const muntInput =
+        document.querySelector(
+            `[name="c${n}_overig"]`
+        );
+
+    if (muntInput) {
+
+        muntgeld =
+            parseFloat(muntInput.value) || 0;
+
+    }
+
+
+    /* Totalen */
+
+    const contant =
+        briefgeld + muntgeld;
+
+    const totaal =
+        bonnen + contant;
+
+
+    /* Tonen */
+
+    document.getElementById(
+        'bonnenTotal' + n
+    ).textContent =
+        formatter.format(bonnen);
+
+
+    document.getElementById(
+        'briefgeldTotal' + n
+    ).textContent =
+        formatter.format(briefgeld);
+
+
+    document.getElementById(
+        'contantTotal' + n
+    ).textContent =
+        formatter.format(contant);
+
+
+    document.getElementById(
+        'total' + n
+    ).textContent =
+        formatter.format(totaal);
+
+
+    return totaal;
+
+}
+
+
+/* ==========================================
+   ALLES BEREKENEN
+========================================== */
+
+function berekenAlles() {
+
+    const t1 =
+        collecteTotaal(1);
+
+    const t2 =
+        collecteTotaal(2);
+
+    const t3 =
+        collecteTotaal(3);
+
+
+    const extraInput =
+        document.querySelector(
+            '[name="extra_storting"]'
+        );
+
+
+    const extra =
+        parseFloat(extraInput.value) || 0;
+
+
+    const grandTotal =
+        t1 + t2 + t3 + extra;
+
+
+    document.getElementById(
+        'grandTotal'
+    ).textContent =
+        formatter.format(grandTotal);
+
+}
+
+
+/* ==========================================
+   LIVE HERBEREKENEN
+========================================== */
+
+document
+    .querySelectorAll('#telform input')
+    .forEach(input => {
+
+        input.addEventListener(
+            'input',
+            berekenAlles
+        );
+
+    });
+
+
+/* Eerste berekening bij laden */
+
+berekenAlles();
+
+</script>
+
+{% endblock %}
+```

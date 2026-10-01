@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}Controle telling {{ r.datum }}{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+    <span class="eyebrow">CONTROLE</span>
+    <h1>Telling {{ r.datum }}</h1>
+    <p>Controleer de bedragen. Klopt alles? Dan kun je de telling als Excel downloaden.</p>
+</div>
+
+<div class="summary-grid">
+
+    <section class="card">
+        <span class="eyebrow">COLLECTE 1</span>
+        <h2>{{ r.doel_1 }}</h2>
+
+        <dl>
+            <div>
+                <dt>Collectebonnen</dt>
+                <dd>{{ t1[0]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Briefgeld</dt>
+                <dd>{{ t1[2]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Muntgeld</dt>
+                <dd>{{ t1[1]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Totaal contant</dt>
+                <dd>{{ t1[3]|euro }}</dd>
+            </div>
+            <div class="sum">
+                <dt>Totaal collecte 1</dt>
+                <dd>{{ t1[4]|euro }}</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="card">
+        <span class="eyebrow">COLLECTE 2</span>
+        <h2>{{ r.doel_2 }}</h2>
+
+        <dl>
+            <div>
+                <dt>Collectebonnen</dt>
+                <dd>{{ t2[0]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Briefgeld</dt>
+                <dd>{{ t2[2]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Muntgeld</dt>
+                <dd>{{ t2[1]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Totaal contant</dt>
+                <dd>{{ t2[3]|euro }}</dd>
+            </div>
+            <div class="sum">
+                <dt>Totaal collecte 2</dt>
+                <dd>{{ t2[4]|euro }}</dd>
+            </div>
+        </dl>
+    </section>
+
+    {% if heeft_derde %}
+    <section class="card extra-summary">
+        <span class="eyebrow">COLLECTE 3 · EXTRA</span>
+        <h2>{{ r.doel_3 }}</h2>
+
+        <dl>
+            <div>
+                <dt>Collectebonnen</dt>
+                <dd>{{ t3[0]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Briefgeld</dt>
+                <dd>{{ t3[2]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Muntgeld</dt>
+                <dd>{{ t3[1]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Totaal contant</dt>
+                <dd>{{ t3[3]|euro }}</dd>
+            </div>
+            <div class="sum">
+                <dt>Totaal collecte 3</dt>
+                <dd>{{ t3[4]|euro }}</dd>
+            </div>
+        </dl>
+    </section>
+    {% endif %}
+
+</div>
+
+{% if r.extra_storting %}
+<section class="card">
+    <span class="eyebrow">EXTRA STORTING</span>
+    <h2>{{ r.extra_storting|euro }}</h2>
+    <p>Bijvoorbeeld koffiegeld of een andere aanvullende storting.</p>
+</section>
+{% endif %}
+
+<section class="grand">
+    <span>Totaal storting deze zondag</span>
+    <strong>{{ totaal|euro }}</strong>
+
+    {% if r.extra_storting %}
+    <small>
+        Inclusief extra storting van {{ r.extra_storting|euro }}
+    </small>
+    {% else %}
+    <small>
+        Totaal van alle collectes
+    </small>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h3>Afronding</h3>
+
+    <dl>
+        <div>
+            <dt>Geteld door</dt>
+            <dd><strong>{{ r.geteld_door }}</strong></dd>
+        </div>
+    </dl>
+
+    {% if r.opmerkingen %}
+    <div>
+        <strong>Opmerkingen</strong>
+        <p>{{ r.opmerkingen }}</p>
+    </div>
+    {% endif %}
+</section>
+
+<div class="actions">
+    <a class="btn" href="/excel/{{ r.datum }}">
+        Excel downloaden
+    </a>
+
+    <a class="btn secondary" href="/tellen?datum={{ r.datum }}">
+        Telling aanpassen
+    </a>
+</div>
+
+{% endblock %}
