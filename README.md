@@ -35,3 +35,17 @@ Open daarna: http://127.0.0.1:8000
 
 ## E-mail
 De applicatie maakt de Excelbestanden al. Automatisch mailen voegen we toe zodra het afzenderadres/mailplatform is gekozen; daarvoor moeten geen wachtwoorden in de broncode worden gezet.
+
+## Login instellen
+
+De app gebruikt één beveiligde login voor de huidige lokale versie.
+
+1. Installeer de requirements: `pip install -r requirements.txt`
+2. Maak een wachtwoordhash: `python maak_wachtwoord.py`
+3. Zet lokaal de variabelen `APP_USERNAME`, `APP_PASSWORD_HASH` en `SESSION_SECRET`.
+4. Zet dezelfde variabelen in Railway bij de service Variables.
+
+Aanbevolen gebruikersnaam: `diaconie`.
+`APP_PASSWORD_HASH` bevat alleen een PBKDF2-hash, niet het leesbare wachtwoord.
+`SESSION_SECRET` mag een lange willekeurige tekenreeks zijn.
+Voor lokaal testen via http kan `COOKIE_HTTPS_ONLY=0` nodig zijn. Op Railway laat je deze weg (standaard veilig op https).
