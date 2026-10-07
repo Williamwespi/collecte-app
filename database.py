@@ -7,7 +7,6 @@ from pathlib import Path
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
-
 DB_PATH = BASE_DIR / "data" / "collectes.db"
 
 DB_PATH.parent.mkdir(
@@ -23,7 +22,6 @@ DB_PATH.parent.mkdir(
 def get_db():
 
     conn = sqlite3.connect(DB_PATH)
-
     conn.row_factory = sqlite3.Row
 
     return conn
@@ -73,10 +71,13 @@ def init_db():
 
                 datum TEXT NOT NULL UNIQUE,
 
-                doel_1 TEXT NOT NULL,
+                doelcode_1 TEXT NOT NULL DEFAULT '',
+                doel_1 TEXT NOT NULL DEFAULT '',
 
-                doel_2 TEXT NOT NULL,
+                doelcode_2 TEXT NOT NULL DEFAULT '',
+                doel_2 TEXT NOT NULL DEFAULT '',
 
+                doelcode_3 TEXT NOT NULL DEFAULT '',
                 doel_3 TEXT NOT NULL DEFAULT ''
 
             );
@@ -89,77 +90,58 @@ def init_db():
                 datum TEXT NOT NULL UNIQUE,
 
 
-                -- ==========================================
                 -- COLLECTEDOELEN
-                -- ==========================================
 
-                doel_1 TEXT NOT NULL,
+                doelcode_1 TEXT NOT NULL DEFAULT '',
+                doel_1 TEXT NOT NULL DEFAULT '',
 
-                doel_2 TEXT NOT NULL,
+                doelcode_2 TEXT NOT NULL DEFAULT '',
+                doel_2 TEXT NOT NULL DEFAULT '',
 
+                doelcode_3 TEXT NOT NULL DEFAULT '',
                 doel_3 TEXT NOT NULL DEFAULT '',
 
 
-                -- ==========================================
                 -- COLLECTE 1
-                -- ==========================================
 
                 c1_blauw INTEGER NOT NULL DEFAULT 0,
-
                 c1_groen INTEGER NOT NULL DEFAULT 0,
 
                 c1_munt_5 INTEGER NOT NULL DEFAULT 0,
-
                 c1_munt_10 INTEGER NOT NULL DEFAULT 0,
-
                 c1_munt_20 INTEGER NOT NULL DEFAULT 0,
-
                 c1_munt_50 INTEGER NOT NULL DEFAULT 0,
 
                 c1_overig REAL NOT NULL DEFAULT 0,
 
 
-                -- ==========================================
                 -- COLLECTE 2
-                -- ==========================================
 
                 c2_blauw INTEGER NOT NULL DEFAULT 0,
-
                 c2_groen INTEGER NOT NULL DEFAULT 0,
 
                 c2_munt_5 INTEGER NOT NULL DEFAULT 0,
-
                 c2_munt_10 INTEGER NOT NULL DEFAULT 0,
-
                 c2_munt_20 INTEGER NOT NULL DEFAULT 0,
-
                 c2_munt_50 INTEGER NOT NULL DEFAULT 0,
 
                 c2_overig REAL NOT NULL DEFAULT 0,
 
 
-                -- ==========================================
                 -- COLLECTE 3
-                -- ==========================================
 
                 c3_blauw INTEGER NOT NULL DEFAULT 0,
-
                 c3_groen INTEGER NOT NULL DEFAULT 0,
 
                 c3_munt_5 INTEGER NOT NULL DEFAULT 0,
-
                 c3_munt_10 INTEGER NOT NULL DEFAULT 0,
-
                 c3_munt_20 INTEGER NOT NULL DEFAULT 0,
-
                 c3_munt_50 INTEGER NOT NULL DEFAULT 0,
 
                 c3_overig REAL NOT NULL DEFAULT 0,
 
 
-                -- ==========================================
                 -- AFRONDING
-                -- ==========================================
 
                 extra_storting REAL NOT NULL DEFAULT 0,
 
@@ -176,8 +158,17 @@ def init_db():
 
 
         # ====================================================
-        # MIGRATIE VAN OUDERE DATABASEVERSIES
+        # MIGRATIE COLLECTEDOELEN
         # ====================================================
+
+        for nummer in (1, 2, 3):
+
+            _add_column_if_missing(
+                conn,
+                "collectedoelen",
+                f"doelcode_{nummer}",
+                "TEXT NOT NULL DEFAULT ''"
+            )
 
         _add_column_if_missing(
             conn,
@@ -187,6 +178,19 @@ def init_db():
         )
 
 
+        # ====================================================
+        # MIGRATIE TELLINGEN
+        # ====================================================
+
+        for nummer in (1, 2, 3):
+
+            _add_column_if_missing(
+                conn,
+                "tellingen",
+                f"doelcode_{nummer}",
+                "TEXT NOT NULL DEFAULT ''"
+            )
+
         _add_column_if_missing(
             conn,
             "tellingen",
@@ -195,8 +199,9 @@ def init_db():
         )
 
 
-        # Collecte 3 kan ontbreken in databases
-        # uit de eerste versie.
+        # ====================================================
+        # MIGRATIE COLLECTE 3
+        # ====================================================
 
         for field in (
             "blauw",
@@ -223,21 +228,6 @@ def init_db():
         )
 
 
-        # Oude kolommen zoals:
-        #
-        # c1_briefgeld
-        # c2_briefgeld
-        # c3_briefgeld
-        # c1_munt_100
-        # etc.
-        #
-        # kunnen in een bestaande database blijven staan.
-        # Ze worden vanaf nu niet meer gebruikt.
-        #
-        # SQLite hoeft hierdoor geen bestaande gegevens
-        # of tabellen te verwijderen.
-
-
         conn.commit()
 
 
@@ -249,15 +239,8 @@ def bereken_collecte(telling, nummer):
 
     prefix = f"c{nummer}_"
 
-
-    # --------------------------------------------------------
-    # COLLECTEBONNEN
-    # --------------------------------------------------------
-
     blauw = telling[f"{prefix}blauw"] or 0
-
     groen = telling[f"{prefix}groen"] or 0
-
 
     totaal_bonnen = (
         blauw * 0.75
@@ -265,19 +248,10 @@ def bereken_collecte(telling, nummer):
         groen * 1.00
     )
 
-
-    # --------------------------------------------------------
-    # BRIEFGELD
-    # --------------------------------------------------------
-
     aantal_5 = telling[f"{prefix}munt_5"] or 0
-
     aantal_10 = telling[f"{prefix}munt_10"] or 0
-
     aantal_20 = telling[f"{prefix}munt_20"] or 0
-
     aantal_50 = telling[f"{prefix}munt_50"] or 0
-
 
     totaal_briefgeld = (
         aantal_5 * 5
@@ -289,19 +263,9 @@ def bereken_collecte(telling, nummer):
         aantal_50 * 50
     )
 
-
-    # --------------------------------------------------------
-    # MUNTGELD
-    # --------------------------------------------------------
-
     totaal_muntgeld = (
         telling[f"{prefix}overig"] or 0
     )
-
-
-    # --------------------------------------------------------
-    # CONTANT
-    # --------------------------------------------------------
 
     totaal_contant = (
         totaal_briefgeld
@@ -309,45 +273,18 @@ def bereken_collecte(telling, nummer):
         totaal_muntgeld
     )
 
-
-    # --------------------------------------------------------
-    # COMPLETE COLLECTE
-    # --------------------------------------------------------
-
     totaal_collecte = (
         totaal_bonnen
         +
         totaal_contant
     )
 
-
     return {
-
-        "bonnen": round(
-            totaal_bonnen,
-            2
-        ),
-
-        "briefgeld": round(
-            totaal_briefgeld,
-            2
-        ),
-
-        "muntgeld": round(
-            totaal_muntgeld,
-            2
-        ),
-
-        "contant": round(
-            totaal_contant,
-            2
-        ),
-
-        "totaal": round(
-            totaal_collecte,
-            2
-        )
-
+        "bonnen": round(totaal_bonnen, 2),
+        "briefgeld": round(totaal_briefgeld, 2),
+        "muntgeld": round(totaal_muntgeld, 2),
+        "contant": round(totaal_contant, 2),
+        "totaal": round(totaal_collecte, 2),
     }
 
 
@@ -357,26 +294,13 @@ def bereken_collecte(telling, nummer):
 
 def bereken_zondagtotaal(telling):
 
-    collecte_1 = bereken_collecte(
-        telling,
-        1
-    )
-
-    collecte_2 = bereken_collecte(
-        telling,
-        2
-    )
-
-    collecte_3 = bereken_collecte(
-        telling,
-        3
-    )
-
+    collecte_1 = bereken_collecte(telling, 1)
+    collecte_2 = bereken_collecte(telling, 2)
+    collecte_3 = bereken_collecte(telling, 3)
 
     extra_storting = (
         telling["extra_storting"] or 0
     )
-
 
     totaal = (
         collecte_1["totaal"]
@@ -388,8 +312,4 @@ def bereken_zondagtotaal(telling):
         extra_storting
     )
 
-
-    return round(
-        totaal,
-        2
-    )
+    return round(totaal, 2)

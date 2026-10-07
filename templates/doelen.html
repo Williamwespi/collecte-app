@@ -1,46 +1,331 @@
 {% extends 'base.html' %}
+
+{% block title %}Collectedoelen{% endblock %}
+
 {% block content %}
+
 <div class="page-head">
     <span class="eyebrow">BEHEER</span>
+
     <h1>Collectedoelen</h1>
-    <p>Leg de doelen vooraf vast. Collecte 3 is optioneel en kan tijdens het tellen altijd worden overruled.</p>
+
+    <p>
+        Leg de collectedoelen vooraf vast.
+        Collecte 3 is optioneel en kan tijdens het tellen worden aangepast.
+    </p>
 </div>
 
 
-{% if melding %}<div class="notice success">{{ melding }}</div>{% endif %}
-{% if fout %}<div class="notice error">{{ fout }}</div>{% endif %}
+{% if melding %}
+<div class="notice success">
+    {{ melding }}
+</div>
+{% endif %}
+
+{% if fout %}
+<div class="notice error">
+    {{ fout }}
+</div>
+{% endif %}
+
+
+<!-- ========================================================
+     EXCEL IMPORT
+======================================================== -->
 
 <section class="card import-card">
+
     <h2>Collectedoelen importeren</h2>
-    <p>Upload een Excelbestand met de kolommen <strong>Datum</strong>, <strong>Collecte 1</strong>, <strong>Collecte 2</strong> en eventueel <strong>Collecte 3</strong>. Bestaande datums worden bijgewerkt.</p>
-    <form method="post" action="/doelen/importeren" enctype="multipart/form-data" class="import-form">
-        <input type="file" name="bestand" accept=".xlsx" required>
-        <button class="btn" type="submit">Excel importeren</button>
-        <a class="btn secondary" href="/doelen/voorbeeld">Voorbeeld Excel downloaden</a>
+
+    <p>
+        Upload een Excelbestand met per collecte een
+        <strong>doel</strong> en een <strong>omschrijving</strong>.
+        Collecte 3 is optioneel. Bestaande datums worden bijgewerkt.
+    </p>
+
+    <form
+        method="post"
+        action="/doelen/importeren"
+        enctype="multipart/form-data"
+        class="import-form"
+    >
+
+        <input
+            type="file"
+            name="bestand"
+            accept=".xlsx"
+            required
+        >
+
+        <button
+            class="btn"
+            type="submit"
+        >
+            Excel importeren
+        </button>
+
+        <a
+            class="btn secondary"
+            href="/doelen/voorbeeld"
+        >
+            Voorbeeld Excel
+        </a>
+
     </form>
+
 </section>
 
-<h2>Handmatig toevoegen of wijzigen</h2>
-<form method="post" class="card goal-form">
-    <label>Datum<input type="date" name="datum" required></label>
-    <label>Collecte 1<input name="doel_1" required placeholder="Collectedoel 1"></label>
-    <label>Collecte 2<input name="doel_2" required placeholder="Collectedoel 2"></label>
-    <label>Collecte 3 <small>optioneel</small><input name="doel_3" placeholder="Extra collectedoel"></label>
-    <button class="btn">Opslaan</button>
-</form>
 
-<section>
+<!-- ========================================================
+     HANDMATIG INVOEREN
+======================================================== -->
+
+<section class="doelen-beheer">
+
+    <h2>Handmatig toevoegen of wijzigen</h2>
+
+    <form
+        method="post"
+        action="/doelen"
+        class="card doelen-form"
+    >
+
+        <!-- DATUM -->
+
+        <div class="doelen-datum">
+
+            <label>
+                Datum
+
+                <input
+                    type="date"
+                    name="datum"
+                    required
+                >
+            </label>
+
+        </div>
+
+
+        <!-- COLLECTE 1 -->
+
+        <div class="doel-rij">
+
+            <div class="doel-rij-kop">
+
+                <span class="doel-nummer">
+                    1
+                </span>
+
+                <div>
+                    <strong>Collecte 1</strong>
+                    <small>Verplicht</small>
+                </div>
+
+            </div>
+
+
+            <label class="doel-code">
+
+                Doel
+
+                <input
+                    name="doelcode_1"
+                    required
+                    placeholder="Bijv. D"
+                >
+
+            </label>
+
+
+            <label class="doel-omschrijving">
+
+                Collecte
+
+                <input
+                    name="doel_1"
+                    required
+                    placeholder="Bijv. Zending"
+                >
+
+            </label>
+
+        </div>
+
+
+        <!-- COLLECTE 2 -->
+
+        <div class="doel-rij">
+
+            <div class="doel-rij-kop">
+
+                <span class="doel-nummer">
+                    2
+                </span>
+
+                <div>
+                    <strong>Collecte 2</strong>
+                    <small>Verplicht</small>
+                </div>
+
+            </div>
+
+
+            <label class="doel-code">
+
+                Doel
+
+                <input
+                    name="doelcode_2"
+                    required
+                    placeholder="Bijv. K"
+                >
+
+            </label>
+
+
+            <label class="doel-omschrijving">
+
+                Collecte
+
+                <input
+                    name="doel_2"
+                    required
+                    placeholder="Bijv. Kerk"
+                >
+
+            </label>
+
+        </div>
+
+
+        <!-- COLLECTE 3 -->
+
+        <div class="doel-rij doel-rij-optioneel">
+
+            <div class="doel-rij-kop">
+
+                <span class="doel-nummer">
+                    3
+                </span>
+
+                <div>
+                    <strong>Collecte 3</strong>
+                    <small>Optioneel</small>
+                </div>
+
+            </div>
+
+
+            <label class="doel-code">
+
+                Doel
+
+                <input
+                    name="doelcode_3"
+                >
+
+            </label>
+
+
+            <label class="doel-omschrijving">
+
+                Collecte
+
+                <input
+                    name="doel_3"
+                    placeholder="Bijv. Zondagsschool"
+                >
+
+            </label>
+
+        </div>
+
+
+        <!-- OPSLAAN -->
+
+        <div class="doelen-form-actions">
+
+            <button
+                class="btn"
+                type="submit"
+            >
+                Opslaan
+            </button>
+
+        </div>
+
+    </form>
+
+</section>
+
+
+<!-- ========================================================
+     INGESTELDE ZONDAGEN
+======================================================== -->
+
+<section class="doelen-overzicht">
+
     <h2>Ingestelde zondagen</h2>
+
+
     {% for r in rows %}
+
     <div class="row-card">
+
         <span>
-            <strong>{{ r.datum }}</strong>
-            <small>1. {{ r.doel_1 }} · 2. {{ r.doel_2 }}{% if r.doel_3 %} · 3. {{ r.doel_3 }}{% endif %}</small>
+
+            <strong>
+                {{ r.datum }}
+            </strong>
+
+            <small>
+
+                1.
+                {% if r.doelcode_1 %}
+                    {{ r.doelcode_1 }} ·
+                {% endif %}
+                {{ r.doel_1 }}
+
+                &nbsp;&nbsp;
+
+                2.
+                {% if r.doelcode_2 %}
+                    {{ r.doelcode_2 }} ·
+                {% endif %}
+                {{ r.doel_2 }}
+
+                {% if r.doel_3 %}
+
+                    &nbsp;&nbsp;
+
+                    3.
+                    {% if r.doelcode_3 %}
+                        {{ r.doelcode_3 }} ·
+                    {% endif %}
+                    {{ r.doel_3 }}
+
+                {% endif %}
+
+            </small>
+
         </span>
-        <a href="/tellen?datum={{r.datum}}">Tellen →</a>
+
+        <a href="/tellen?datum={{ r.datum }}">
+            Tellen →
+        </a>
+
     </div>
+
+
     {% else %}
-    <div class="card muted">Nog geen collectedoelen ingesteld.</div>
+
+    <div class="card muted">
+        Nog geen collectedoelen ingesteld.
+    </div>
+
     {% endfor %}
+
 </section>
+
 {% endblock %}

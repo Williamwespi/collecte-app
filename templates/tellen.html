@@ -4,46 +4,119 @@
 
 {% block content %}
 
+
 <div class="page-head">
-    <span class="eyebrow">TELFORMULIER</span>
-    <h1>{{ datum }}</h1>
-    <p>Vul de aantallen in. De bedragen worden direct voor je uitgerekend.</p>
+
+    <span class="eyebrow">
+        TELFORMULIER
+    </span>
+
+    <h1>
+        {{ datum }}
+    </h1>
+
+    <p>
+        Vul de aantallen in.
+        De bedragen worden direct voor je uitgerekend.
+    </p>
+
 </div>
 
 
-<form method="post" class="stack" id="telform">
+<form
+    method="post"
+    class="stack"
+    id="telform"
+>
 
-    <input type="hidden" name="datum" value="{{ datum }}">
+    <input
+        type="hidden"
+        name="datum"
+        value="{{ datum }}"
+    >
 
 
     {% for n in (1,2,3) %}
 
-    {% set doelwaarde = bestaand['doel_' ~ n] if bestaand else (doel['doel_' ~ n] if doel else '') %}
+
+    {% set doelcodewaarde =
+        bestaand['doelcode_' ~ n]
+        if bestaand
+        else (
+            doel['doelcode_' ~ n]
+            if doel
+            else ''
+        )
+    %}
+
+
+    {% set doelwaarde =
+        bestaand['doel_' ~ n]
+        if bestaand
+        else (
+            doel['doel_' ~ n]
+            if doel
+            else ''
+        )
+    %}
+
 
     <section
         class="card collecte {% if n == 3 %}collecte-extra{% endif %}"
         id="collecte{{ n }}"
     >
 
+
         <div class="collecte-head">
 
             <div>
-                <span>Collecte {{ n }}</span>
+
+                <span>
+                    Collecte {{ n }}
+                </span>
 
                 {% if n == 3 %}
+
                 <small>
                     Extra collecte · optioneel en handmatig aanpasbaar
                 </small>
+
                 {% endif %}
+
             </div>
 
-            <input
-                class="goal"
-                name="doel_{{ n }}"
-                {% if n < 3 %}required{% endif %}
-                value="{{ doelwaarde }}"
-                placeholder="{% if n == 3 %}Geen extra collecte{% else %}Collectedoel{% endif %}"
-            >
+        </div>
+
+
+        <div class="grid2">
+
+            <label>
+
+                Doel
+
+                <input
+                    name="doelcode_{{ n }}"
+                    value="{{ doelcodewaarde }}"
+                    {% if n < 3 %}required{% endif %}
+                    placeholder="{% if n == 3 %}Geen doel{% else %}Doel{% endif %}"
+                >
+
+            </label>
+
+
+            <label>
+
+                Collecte {{ n }}
+
+                <input
+                    class="goal"
+                    name="doel_{{ n }}"
+                    value="{{ doelwaarde }}"
+                    {% if n < 3 %}required{% endif %}
+                    placeholder="{% if n == 3 %}Geen extra collecte{% else %}Collectedoel{% endif %}"
+                >
+
+            </label>
 
         </div>
 
@@ -52,11 +125,16 @@
              COLLECTEBONNEN
         =========================================== -->
 
-        <h3>Collectebonnen</h3>
+        <h3>
+            Collectebonnen
+        </h3>
+
 
         <div class="grid2">
 
+
             <label>
+
                 Blauw · € 0,75
 
                 <input
@@ -68,10 +146,12 @@
                     data-value="0.75"
                     data-type="bonnen"
                 >
+
             </label>
 
 
             <label>
+
                 Groen · € 1,00
 
                 <input
@@ -83,14 +163,23 @@
                     data-value="1"
                     data-type="bonnen"
                 >
+
             </label>
+
 
         </div>
 
 
         <div class="subtotal">
-            <span>Totaal collectebonnen</span>
-            <strong id="bonnenTotal{{ n }}">€ 0,00</strong>
+
+            <span>
+                Totaal collectebonnen
+            </span>
+
+            <strong id="bonnenTotal{{ n }}">
+                € 0,00
+            </strong>
+
         </div>
 
 
@@ -98,13 +187,19 @@
              BRIEFGELD
         =========================================== -->
 
-        <h3>Briefgeld</h3>
+        <h3>
+            Briefgeld
+        </h3>
+
 
         <div class="money-grid">
 
+
             {% for v in (5,10,20,50) %}
 
+
             <label>
+
                 € {{ v }}
 
                 <input
@@ -116,16 +211,26 @@
                     data-value="{{ v }}"
                     data-type="briefgeld"
                 >
+
             </label>
 
+
             {% endfor %}
+
 
         </div>
 
 
         <div class="subtotal">
-            <span>Totaal briefgeld</span>
-            <strong id="briefgeldTotal{{ n }}">€ 0,00</strong>
+
+            <span>
+                Totaal briefgeld
+            </span>
+
+            <strong id="briefgeldTotal{{ n }}">
+                € 0,00
+            </strong>
+
         </div>
 
 
@@ -133,9 +238,13 @@
              MUNTGELD
         =========================================== -->
 
-        <h3>Muntgeld</h3>
+        <h3>
+            Muntgeld
+        </h3>
+
 
         <label>
+
             Totaal muntgeld
 
             <input
@@ -149,6 +258,7 @@
                 data-type="muntgeld"
                 placeholder="0,00"
             >
+
         </label>
 
 
@@ -157,17 +267,33 @@
         =========================================== -->
 
         <div class="subtotal">
-            <span>Totaal contant</span>
-            <strong id="contantTotal{{ n }}">€ 0,00</strong>
+
+            <span>
+                Totaal contant
+            </span>
+
+            <strong id="contantTotal{{ n }}">
+                € 0,00
+            </strong>
+
         </div>
 
 
         <div class="subtotal">
-            <span>Totaal collecte {{ n }}</span>
-            <strong id="total{{ n }}">€ 0,00</strong>
+
+            <span>
+                Totaal collecte {{ n }}
+            </span>
+
+            <strong id="total{{ n }}">
+                € 0,00
+            </strong>
+
         </div>
 
+
     </section>
+
 
     {% endfor %}
 
@@ -178,11 +304,18 @@
 
     <section class="card">
 
-        <h3>Afronding</h3>
+        <h3>
+            Afronding
+        </h3>
+
 
         <label>
+
             Extra storting
-            <small>bijvoorbeeld koffiegeld</small>
+
+            <small>
+                bijvoorbeeld koffiegeld
+            </small>
 
             <input
                 inputmode="decimal"
@@ -192,20 +325,24 @@
                 value="{{ bestaand.extra_storting if bestaand else 0 }}"
                 name="extra_storting"
             >
+
         </label>
 
 
         <label>
+
             Opmerkingen
 
             <textarea
                 name="opmerkingen"
                 rows="3"
             >{{ bestaand.opmerkingen if bestaand else '' }}</textarea>
+
         </label>
 
 
         <label>
+
             Geteld door
 
             <input
@@ -214,7 +351,9 @@
                 value="{{ bestaand.geteld_door if bestaand else '' }}"
                 placeholder="Naam/namen"
             >
+
         </label>
+
 
     </section>
 
@@ -225,14 +364,17 @@
 
     <section class="live-total">
 
-        <span>Totaal van deze zondag</span>
+        <span>
+            Totaal van deze zondag
+        </span>
 
         <strong id="grandTotal">
             € 0,00
         </strong>
 
         <small>
-            Inclusief eventuele derde collecte en extra storting
+            Inclusief eventuele derde collecte
+            en extra storting
         </small>
 
     </section>
@@ -248,6 +390,7 @@
         </button>
 
     </div>
+
 
 </form>
 
@@ -319,6 +462,7 @@ function collecteTotaal(n) {
             `[name="c${n}_overig"]`
         );
 
+
     if (muntInput) {
 
         muntgeld =
@@ -327,16 +471,19 @@ function collecteTotaal(n) {
     }
 
 
-    /* Totalen */
+    /* Totaal contant:
+       ALLEEN briefgeld + muntgeld */
 
     const contant =
         briefgeld + muntgeld;
 
+
+    /* Complete collecte:
+       bonnen + contant */
+
     const totaal =
         bonnen + contant;
 
-
-    /* Tonen */
 
     document.getElementById(
         'bonnenTotal' + n
@@ -421,10 +568,9 @@ document
     });
 
 
-/* Eerste berekening bij laden */
-
 berekenAlles();
 
 </script>
+
 
 {% endblock %}

@@ -1,33 +1,33 @@
-from datetime import date
+from datetime import date, datetime
 from io import BytesIO
+from urllib.parse import quote_plus
 
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from database import get_db
-from auth import configured_password_hash, configured_username, verify_password
+from auth import (
+    configured_password_hash,
+    configured_username,
+    verify_password,
+)
 
 
 router = APIRouter()
-
 templates = Jinja2Templates(directory="templates")
 
 
-VALUES = {
-    "blauw": 0.75,
-    "groen": 1.00,
-    "munt_5": 5.00,
-    "munt_10": 10.00,
-    "munt_20": 20.00,
-    "munt_50": 50.00,
-}
-
+# ============================================================
+# EURO
+# ============================================================
 
 def euro(value):
+
     return (
         f"€ {float(value or 0):,.2f}"
         .replace(",", "X")
@@ -39,24 +39,43 @@ def euro(value):
 templates.env.filters["euro"] = euro
 
 
+# ============================================================
+# TOTALEN
+# ============================================================
+
 def totals(row, nummer):
+
     bonnen = (
         (row[f"c{nummer}_blauw"] or 0) * 0.75
-        + (row[f"c{nummer}_groen"] or 0) * 1.00
+        +
+        (row[f"c{nummer}_groen"] or 0) * 1.00
     )
 
     briefgeld = (
         (row[f"c{nummer}_munt_5"] or 0) * 5
-        + (row[f"c{nummer}_munt_10"] or 0) * 10
-        + (row[f"c{nummer}_munt_20"] or 0) * 20
-        + (row[f"c{nummer}_munt_50"] or 0) * 50
+        +
+        (row[f"c{nummer}_munt_10"] or 0) * 10
+        +
+        (row[f"c{nummer}_munt_20"] or 0) * 20
+        +
+        (row[f"c{nummer}_munt_50"] or 0) * 50
     )
 
-    muntgeld = row[f"c{nummer}_overig"] or 0
+    muntgeld = (
+        row[f"c{nummer}_overig"] or 0
+    )
 
-    contant = briefgeld + muntgeld
+    contant = (
+        briefgeld
+        +
+        muntgeld
+    )
 
-    totaal = bonnen + contant
+    totaal = (
+        bonnen
+        +
+        contant
+    )
 
     return (
         bonnen,
@@ -68,23 +87,27 @@ def totals(row, nummer):
 
 
 def derde_collecte_actief(row):
-    if not row["doel_3"].strip():
-        return False
 
-    return True
+    return bool(
+        str(row["doel_3"] or "").strip()
+    )
 
 
 # ============================================================
 # LOGIN
 # ============================================================
 
-
-@router.get("/login", response_class=HTMLResponse)
+@router.get(
+    "/login",
+    response_class=HTMLResponse
+)
 def login_page(
     request: Request,
     fout: str | None = None,
 ):
+
     if request.session.get("logged_in"):
+
         return RedirectResponse(
             "/",
             status_code=303,
@@ -105,7 +128,10 @@ def login(
     gebruikersnaam: str = Form(...),
     wachtwoord: str = Form(...),
 ):
-    password_hash = configured_password_hash()
+
+    password_hash = (
+        configured_password_hash()
+    )
 
     geldig = (
         bool(password_hash)
@@ -118,6 +144,7 @@ def login(
     )
 
     if not geldig:
+
         return templates.TemplateResponse(
             request=request,
             name="login.html",
@@ -133,7 +160,6 @@ def login(
     request.session.clear()
 
     request.session["logged_in"] = True
-
     request.session["username"] = (
         gebruikersnaam.strip()
     )
@@ -146,6 +172,7 @@ def login(
 
 @router.post("/logout")
 def logout(request: Request):
+
     request.session.clear()
 
     return RedirectResponse(
@@ -158,12 +185,16 @@ def logout(request: Request):
 # HOME
 # ============================================================
 
-
-@router.get("/", response_class=HTMLResponse)
+@router.get(
+    "/",
+    response_class=HTMLResponse
+)
 def home(request: Request):
+
     vandaag = date.today().isoformat()
 
     with get_db() as db:
+
         doel = db.execute(
             """
             SELECT *
@@ -197,18 +228,22 @@ def home(request: Request):
 # TELLEN
 # ============================================================
 
-
 @router.get(
     "/tellen",
-    response_class=HTMLResponse,
+    response_class=HTMLResponse
 )
 def tellen(
     request: Request,
     datum: str | None = None,
 ):
-    datum = datum or date.today().isoformat()
+
+    datum = (
+        datum
+        or date.today().isoformat()
+    )
 
     with get_db() as db:
+
         doel = db.execute(
             """
             SELECT *
@@ -240,9 +275,16 @@ def tellen(
 
 @router.post("/tellen")
 def telling_opslaan(
+
     datum: str = Form(...),
+
+    doelcode_1: str = Form(""),
     doel_1: str = Form(...),
+
+    doelcode_2: str = Form(""),
     doel_2: str = Form(...),
+
+    doelcode_3: str = Form(""),
     doel_3: str = Form(""),
 
     c1_blauw: int = Form(0),
@@ -273,12 +315,14 @@ def telling_opslaan(
     opmerkingen: str = Form(""),
     geteld_door: str = Form(...),
 ):
+
     data = locals().copy()
 
     columns = list(data.keys())
 
     placeholders = ",".join(
-        "?" for _ in columns
+        "?"
+        for _ in columns
     )
 
     updates = ",".join(
@@ -288,12 +332,14 @@ def telling_opslaan(
     )
 
     with get_db() as db:
+
         db.execute(
             f"""
             INSERT INTO tellingen (
                 {','.join(columns)}
             )
             VALUES ({placeholders})
+
             ON CONFLICT(datum)
             DO UPDATE SET
                 {updates}
@@ -316,16 +362,17 @@ def telling_opslaan(
 # CONTROLE
 # ============================================================
 
-
 @router.get(
     "/controle/{datum}",
-    response_class=HTMLResponse,
+    response_class=HTMLResponse
 )
 def controle(
     request: Request,
     datum: str,
 ):
+
     with get_db() as db:
+
         row = db.execute(
             """
             SELECT *
@@ -336,25 +383,32 @@ def controle(
         ).fetchone()
 
     if not row:
-        return RedirectResponse("/")
+
+        return RedirectResponse(
+            "/",
+            status_code=303,
+        )
 
     t1 = totals(row, 1)
     t2 = totals(row, 2)
     t3 = totals(row, 3)
 
-    heeft_derde = derde_collecte_actief(
-        row
+    heeft_derde = (
+        derde_collecte_actief(row)
     )
 
     totaal = (
         t1[4]
-        + t2[4]
-        + (
+        +
+        t2[4]
+        +
+        (
             t3[4]
             if heeft_derde
             else 0
         )
-        + row["extra_storting"]
+        +
+        (row["extra_storting"] or 0)
     )
 
     return templates.TemplateResponse(
@@ -375,17 +429,18 @@ def controle(
 # COLLECTEDOELEN
 # ============================================================
 
-
 @router.get(
     "/doelen",
-    response_class=HTMLResponse,
+    response_class=HTMLResponse
 )
 def doelen(
     request: Request,
     melding: str | None = None,
     fout: str | None = None,
 ):
+
     with get_db() as db:
+
         rows = db.execute(
             """
             SELECT *
@@ -405,35 +460,60 @@ def doelen(
     )
 
 
+# ============================================================
+# COLLECTEDOEL HANDMATIG OPSLAAN
+# ============================================================
+
 @router.post("/doelen")
 def doel_opslaan(
+
     datum: str = Form(...),
+
+    doelcode_1: str = Form(...),
     doel_1: str = Form(...),
+
+    doelcode_2: str = Form(...),
     doel_2: str = Form(...),
+
+    doelcode_3: str = Form(""),
     doel_3: str = Form(""),
 ):
+
     with get_db() as db:
+
         db.execute(
             """
             INSERT INTO collectedoelen(
                 datum,
+                doelcode_1,
                 doel_1,
+                doelcode_2,
                 doel_2,
+                doelcode_3,
                 doel_3
             )
-            VALUES(?,?,?,?)
+            VALUES(?,?,?,?,?,?,?)
 
             ON CONFLICT(datum)
             DO UPDATE SET
+                doelcode_1=excluded.doelcode_1,
                 doel_1=excluded.doel_1,
+                doelcode_2=excluded.doelcode_2,
                 doel_2=excluded.doel_2,
+                doelcode_3=excluded.doelcode_3,
                 doel_3=excluded.doel_3
             """,
             (
                 datum,
-                doel_1,
-                doel_2,
-                doel_3,
+
+                doelcode_1.strip(),
+                doel_1.strip(),
+
+                doelcode_2.strip(),
+                doel_2.strip(),
+
+                doelcode_3.strip(),
+                doel_3.strip(),
             ),
         )
 
@@ -446,20 +526,107 @@ def doel_opslaan(
 
 
 # ============================================================
-# COLLECTEDOELEN IMPORTEREN
+# DATUM UIT EXCEL
 # ============================================================
 
+def excel_datum_naar_iso(
+    raw_datum,
+    rij,
+):
+
+    if raw_datum is None:
+
+        raise ValueError(
+            f"Datum ontbreekt op rij {rij}."
+        )
+
+    if isinstance(
+        raw_datum,
+        datetime
+    ):
+
+        return (
+            raw_datum
+            .date()
+            .isoformat()
+        )
+
+    if isinstance(
+        raw_datum,
+        date
+    ):
+
+        return raw_datum.isoformat()
+
+    tekst = str(
+        raw_datum
+    ).strip()
+
+    for fmt in (
+        "%Y-%m-%d",
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+    ):
+
+        try:
+
+            return (
+                datetime.strptime(
+                    tekst,
+                    fmt,
+                )
+                .date()
+                .isoformat()
+            )
+
+        except ValueError:
+
+            pass
+
+    raise ValueError(
+        f"Ongeldige datum op rij {rij}: {tekst}"
+    )
+
+
+# ============================================================
+# EXCELWAARDE NAAR TEKST
+# ============================================================
+
+def excel_tekst(value):
+
+    if value is None:
+
+        return ""
+
+    # Voorkomt bijvoorbeeld 101.0
+    # wanneer Excel een geheel getal als float aanlevert.
+
+    if (
+        isinstance(value, float)
+        and value.is_integer()
+    ):
+
+        return str(int(value))
+
+    return str(value).strip()
+
+
+# ============================================================
+# COLLECTEDOELEN IMPORTEREN
+# ============================================================
 
 @router.post("/doelen/importeren")
 async def doelen_importeren(
     bestand: UploadFile = File(...),
 ):
+
     if (
         not bestand.filename
         or not bestand.filename
         .lower()
         .endswith(".xlsx")
     ):
+
         return RedirectResponse(
             (
                 "/doelen?"
@@ -470,6 +637,7 @@ async def doelen_importeren(
         )
 
     try:
+
         inhoud = await bestand.read()
 
         wb = load_workbook(
@@ -479,206 +647,188 @@ async def doelen_importeren(
 
         ws = wb.active
 
-        headers = {}
+        # ----------------------------------------------------
+        # We lezen bewust op kolompositie.
+        #
+        # A = Datum
+        # B = Doel
+        # C = Collecte 1
+        # D = Doel
+        # E = Collecte 2
+        # F = Doel
+        # G = Collecte 3
+        #
+        # Dit is nodig omdat "Doel" drie keer voorkomt.
+        # ----------------------------------------------------
 
-        for cell in ws[1]:
-            if cell.value is not None:
-                headers[
-                    str(cell.value)
-                    .strip()
-                    .lower()
-                ] = cell.column
+        verwachte_headers = [
+            "datum",
+            "doel",
+            "collecte 1",
+            "doel",
+            "collecte 2",
+            "doel",
+            "collecte 3",
+        ]
 
-        aliases = {
-            "datum": [
-                "datum",
-                "date",
-            ],
-            "doel_1": [
-                "collecte 1",
-                "doel 1",
-                "collectedoel 1",
-            ],
-            "doel_2": [
-                "collecte 2",
-                "doel 2",
-                "collectedoel 2",
-            ],
-            "doel_3": [
-                "collecte 3",
-                "doel 3",
-                "collectedoel 3",
-            ],
-        }
+        werkelijke_headers = []
 
-        cols = {}
+        for kolom in range(1, 8):
 
-        for key, names in aliases.items():
-            cols[key] = next(
-                (
-                    headers[n]
-                    for n in names
-                    if n in headers
-                ),
-                None,
+            waarde = ws.cell(
+                1,
+                kolom,
+            ).value
+
+            werkelijke_headers.append(
+                str(
+                    waarde or ""
+                )
+                .strip()
+                .lower()
             )
 
         if (
-            not cols["datum"]
-            or not cols["doel_1"]
-            or not cols["doel_2"]
+            werkelijke_headers
+            != verwachte_headers
         ):
+
             raise ValueError(
-                (
-                    "Kolommen Datum, Collecte 1 "
-                    "en Collecte 2 zijn verplicht."
-                )
+                "De eerste rij moet exact zijn: "
+                "Datum | Doel | Collecte 1 | "
+                "Doel | Collecte 2 | "
+                "Doel | Collecte 3"
             )
 
         aantal = 0
 
         with get_db() as db:
-            for r in range(
+
+            for rij in range(
                 2,
                 ws.max_row + 1,
             ):
-                raw_datum = ws.cell(
-                    r,
-                    cols["datum"],
-                ).value
 
-                doel1 = ws.cell(
-                    r,
-                    cols["doel_1"],
-                ).value
-
-                doel2 = ws.cell(
-                    r,
-                    cols["doel_2"],
-                ).value
-
-                doel3 = (
-                    ws.cell(
-                        r,
-                        cols["doel_3"],
-                    ).value
-                    if cols["doel_3"]
-                    else ""
+                raw_datum = (
+                    ws.cell(rij, 1).value
                 )
+
+                doelcode_1 = excel_tekst(
+                    ws.cell(rij, 2).value
+                )
+
+                doel_1 = excel_tekst(
+                    ws.cell(rij, 3).value
+                )
+
+                doelcode_2 = excel_tekst(
+                    ws.cell(rij, 4).value
+                )
+
+                doel_2 = excel_tekst(
+                    ws.cell(rij, 5).value
+                )
+
+                doelcode_3 = excel_tekst(
+                    ws.cell(rij, 6).value
+                )
+
+                doel_3 = excel_tekst(
+                    ws.cell(rij, 7).value
+                )
+
+                # Helemaal lege regel overslaan
 
                 if (
                     raw_datum is None
-                    and doel1 is None
-                    and doel2 is None
+                    and not doelcode_1
+                    and not doel_1
+                    and not doelcode_2
+                    and not doel_2
+                    and not doelcode_3
+                    and not doel_3
                 ):
+
                     continue
 
-                if hasattr(
+                datum = excel_datum_naar_iso(
                     raw_datum,
-                    "date",
-                ):
-                    datum = (
-                        raw_datum
-                        .date()
-                        .isoformat()
+                    rij,
+                )
+
+                if not doelcode_1:
+
+                    raise ValueError(
+                        f"Doel voor collecte 1 "
+                        f"ontbreekt op rij {rij}."
                     )
 
-                elif (
-                    hasattr(
-                        raw_datum,
-                        "isoformat",
-                    )
-                    and not isinstance(
-                        raw_datum,
-                        str,
-                    )
-                ):
-                    datum = (
-                        raw_datum
-                        .isoformat()
+                if not doel_1:
+
+                    raise ValueError(
+                        f"Collecte 1 ontbreekt "
+                        f"op rij {rij}."
                     )
 
-                else:
-                    tekst = str(
-                        raw_datum
-                    ).strip()
+                if not doelcode_2:
 
-                    parsed = None
+                    raise ValueError(
+                        f"Doel voor collecte 2 "
+                        f"ontbreekt op rij {rij}."
+                    )
 
-                    for fmt in (
-                        "%Y-%m-%d",
-                        "%d-%m-%Y",
-                        "%d/%m/%Y",
-                    ):
-                        try:
-                            from datetime import (
-                                datetime,
-                            )
+                if not doel_2:
 
-                            parsed = (
-                                datetime.strptime(
-                                    tekst,
-                                    fmt,
-                                )
-                                .date()
-                                .isoformat()
-                            )
+                    raise ValueError(
+                        f"Collecte 2 ontbreekt "
+                        f"op rij {rij}."
+                    )
 
-                            break
-
-                        except ValueError:
-                            pass
-
-                    if not parsed:
-                        raise ValueError(
-                            (
-                                "Ongeldige datum "
-                                f"op rij {r}: "
-                                f"{tekst}"
-                            )
-                        )
-
-                    datum = parsed
+                # Collecte 3 is optioneel.
+                # Als één van beide is ingevuld,
+                # moeten beide ingevuld zijn.
 
                 if (
-                    not str(
-                        doel1 or ""
-                    ).strip()
-                    or not str(
-                        doel2 or ""
-                    ).strip()
+                    bool(doelcode_3)
+                    != bool(doel_3)
                 ):
+
                     raise ValueError(
-                        (
-                            "Collecte 1 en 2 "
-                            "zijn verplicht "
-                            f"op rij {r}."
-                        )
+                        f"Vul op rij {rij} voor "
+                        f"collecte 3 zowel Doel "
+                        f"als Collecte 3 in."
                     )
 
                 db.execute(
                     """
                     INSERT INTO collectedoelen(
                         datum,
+                        doelcode_1,
                         doel_1,
+                        doelcode_2,
                         doel_2,
+                        doelcode_3,
                         doel_3
                     )
-                    VALUES(?,?,?,?)
+                    VALUES(?,?,?,?,?,?,?)
 
                     ON CONFLICT(datum)
                     DO UPDATE SET
+                        doelcode_1=excluded.doelcode_1,
                         doel_1=excluded.doel_1,
+                        doelcode_2=excluded.doelcode_2,
                         doel_2=excluded.doel_2,
+                        doelcode_3=excluded.doelcode_3,
                         doel_3=excluded.doel_3
                     """,
                     (
                         datum,
-                        str(doel1).strip(),
-                        str(doel2).strip(),
-                        str(
-                            doel3 or ""
-                        ).strip(),
+                        doelcode_1,
+                        doel_1,
+                        doelcode_2,
+                        doel_2,
+                        doelcode_3,
+                        doel_3,
                     ),
                 )
 
@@ -696,7 +846,6 @@ async def doelen_importeren(
         )
 
     except Exception as exc:
-        from urllib.parse import quote_plus
 
         return RedirectResponse(
             (
@@ -711,51 +860,54 @@ async def doelen_importeren(
 # VOORBEELD EXCEL COLLECTEDOELEN
 # ============================================================
 
-
 @router.get("/doelen/voorbeeld")
 def doelen_voorbeeld():
+
     wb = Workbook()
 
     ws = wb.active
-
     ws.title = "Collectedoelen"
 
     ws.append(
         [
             "Datum",
+            "Doel",
             "Collecte 1",
+            "Doel",
             "Collecte 2",
+            "Doel",
             "Collecte 3",
         ]
     )
 
+    jaar = date.today().year
+
     ws.append(
         [
-            date(
-                date.today().year,
-                1,
-                4,
-            ),
+            date(jaar, 1, 4),
+            "101",
             "Kerk",
+            "201",
             "Diaconie",
+            "",
             "",
         ]
     )
 
     ws.append(
         [
-            date(
-                date.today().year,
-                1,
-                11,
-            ),
+            date(jaar, 1, 11),
+            "101",
             "Kerk",
+            "201",
             "Diaconie",
+            "301",
             "Extra doel",
         ]
     )
 
     for cell in ws[1]:
+
         cell.font = Font(
             bold=True,
             color="FFFFFF",
@@ -767,17 +919,15 @@ def doelen_voorbeeld():
         )
 
     ws.column_dimensions["A"].width = 16
-
-    for col in (
-        "B",
-        "C",
-        "D",
-    ):
-        ws.column_dimensions[
-            col
-        ].width = 34
+    ws.column_dimensions["B"].width = 14
+    ws.column_dimensions["C"].width = 34
+    ws.column_dimensions["D"].width = 14
+    ws.column_dimensions["E"].width = 34
+    ws.column_dimensions["F"].width = 14
+    ws.column_dimensions["G"].width = 34
 
     for cell in ws["A"][1:]:
+
         cell.number_format = (
             "dd-mm-yyyy"
         )
@@ -785,7 +935,6 @@ def doelen_voorbeeld():
     bio = BytesIO()
 
     wb.save(bio)
-
     bio.seek(0)
 
     return StreamingResponse(
@@ -808,18 +957,18 @@ def doelen_voorbeeld():
 # EXCEL MAKEN
 # ============================================================
 
-
 def make_excel(rows):
+
     wb = Workbook()
 
     ws = wb.active
-
     ws.title = "Collectes"
 
     headers = [
         "Datum",
         "Collecte",
         "Doel",
+        "Omschrijving",
         "Bonnen blauw (€0,75)",
         "Bonnen groen (€1,00)",
         "Totaal bonnen",
@@ -835,6 +984,7 @@ def make_excel(rows):
     ws.append(headers)
 
     for cell in ws[1]:
+
         cell.font = Font(
             bold=True,
             color="FFFFFF",
@@ -850,12 +1000,15 @@ def make_excel(rows):
         )
 
     for row in rows:
+
         nummers = [1, 2]
 
         if derde_collecte_actief(row):
+
             nummers.append(3)
 
         for nummer in nummers:
+
             (
                 bonnen,
                 muntgeld,
@@ -870,45 +1023,59 @@ def make_excel(rows):
             ws.append(
                 [
                     row["datum"],
+
                     nummer,
+
+                    row[
+                        f"doelcode_{nummer}"
+                    ],
+
                     row[
                         f"doel_{nummer}"
                     ],
+
                     row[
                         f"c{nummer}_blauw"
                     ],
+
                     row[
                         f"c{nummer}_groen"
                     ],
+
                     bonnen,
                     muntgeld,
                     briefgeld,
                     contant,
                     totaal,
+
                     (
-                        row[
-                            "extra_storting"
-                        ]
+                        row["extra_storting"]
                         if nummer == 1
                         else 0
                     ),
+
                     row["geteld_door"],
+
                     row["opmerkingen"],
                 ]
             )
 
-    for row in ws.iter_rows(
+    # Geldkolommen G t/m L
+
+    for excel_row in ws.iter_rows(
         min_row=2
     ):
+
         for index in (
-            6,
             7,
             8,
             9,
             10,
             11,
+            12,
         ):
-            row[
+
+            excel_row[
                 index - 1
             ].number_format = (
                 "€ #,##0.00"
@@ -917,6 +1084,7 @@ def make_excel(rows):
     widths = [
         14,
         10,
+        14,
         32,
         20,
         20,
@@ -934,6 +1102,7 @@ def make_excel(rows):
         widths,
         1,
     ):
+
         ws.column_dimensions[
             get_column_letter(index)
         ].width = width
@@ -947,7 +1116,6 @@ def make_excel(rows):
     bio = BytesIO()
 
     wb.save(bio)
-
     bio.seek(0)
 
     return bio
@@ -957,10 +1125,11 @@ def make_excel(rows):
 # EXCEL PER ZONDAG
 # ============================================================
 
-
 @router.get("/excel/{datum}")
 def excel_dag(datum: str):
+
     with get_db() as db:
+
         rows = db.execute(
             """
             SELECT *
@@ -992,14 +1161,18 @@ def excel_dag(datum: str):
 # EXCEL JAAROVERZICHT
 # ============================================================
 
-
 @router.get("/excel")
 def excel_jaar(
     jaar: int | None = None,
 ):
-    jaar = jaar or date.today().year
+
+    jaar = (
+        jaar
+        or date.today().year
+    )
 
     with get_db() as db:
+
         rows = db.execute(
             """
             SELECT *
@@ -1026,4 +1199,3 @@ def excel_jaar(
             )
         },
     )
-    
