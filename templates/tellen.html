@@ -35,35 +35,37 @@
         value="{{ datum }}"
     >
 
+    <div class="collecte-tabs" role="tablist" aria-label="Selecteer een collecte">
+        {% for n in (1, 2, 3, 4) %}
+        <button
+            class="collecte-tab collecte-tab-{{ 'standaard' if n < 3 else 'extra' }}"
+            type="button"
+            role="tab"
+            id="collecte-tab-{{ n }}"
+            aria-controls="collecte{{ n }}"
+            aria-selected="{{ 'true' if n == 1 else 'false' }}"
+            data-collecte-tab="{{ n }}"
+        >
+            <span>Collecte {{ n }}</span>
+            <span class="collecte-tab-status" data-status-label>
+                {% if bevestigingen[n] %}✓ Bevestigd{% endif %}
+            </span>
+        </button>
+        {% endfor %}
+    </div>
 
-    {% for n in (1,2,3) %}
+    <div class="notice error" id="collecteNotice" role="alert" hidden></div>
 
-
-    {% set doelcodewaarde =
-        bestaand['doelcode_' ~ n]
-        if bestaand
-        else (
-            doel['doelcode_' ~ n]
-            if doel
-            else ''
-        )
-    %}
-
-
-    {% set doelwaarde =
-        bestaand['doel_' ~ n]
-        if bestaand
-        else (
-            doel['doel_' ~ n]
-            if doel
-            else ''
-        )
-    %}
-
+    {% for n in (1, 2, 3, 4) %}
 
     <section
-        class="card collecte {% if n == 3 %}collecte-extra{% endif %}"
+        class="card collecte collecte-panel {% if n > 2 %}collecte-extra{% endif %}"
         id="collecte{{ n }}"
+        role="tabpanel"
+        aria-labelledby="collecte-tab-{{ n }}"
+        data-collecte-panel="{{ n }}"
+        data-confirmed="{{ 'true' if bevestigingen[n] else 'false' }}"
+        {% if n != 1 %}hidden{% endif %}
     >
 
 
@@ -75,35 +77,22 @@
                     Collecte {{ n }}
                 </span>
 
-                {% if n == 3 %}
-
                 <small>
-                    Extra collecte · optioneel en handmatig aanpasbaar
+                    {% if n < 3 %}Standaardcollecte{% else %}Extra collecte · optioneel{% endif %}
                 </small>
-
-                {% endif %}
 
             </div>
 
         </div>
 
 
+        <input
+            type="hidden"
+            name="doelcode_{{ n }}"
+            value="{{ collecties[n].doelcode }}"
+        >
+
         <div class="grid2">
-
-            <label>
-
-                Doel
-
-                <input
-                    name="doelcode_{{ n }}"
-                    value="{{ doelcodewaarde }}"
-                    {% if n < 3 %}required{% endif %}
-                    placeholder="{% if n == 3 %}Geen doel{% else %}Doel{% endif %}"
-                >
-
-            </label>
-
-
             <label>
 
                 Collecte {{ n }}
@@ -111,9 +100,10 @@
                 <input
                     class="goal"
                     name="doel_{{ n }}"
-                    value="{{ doelwaarde }}"
+                    value="{{ collecties[n].doel }}"
                     {% if n < 3 %}required{% endif %}
-                    placeholder="{% if n == 3 %}Geen extra collecte{% else %}Collectedoel{% endif %}"
+                    {% if bevestigingen[n] %}readonly{% endif %}
+                    placeholder="{% if n > 2 %}Geen extra collecte{% else %}Collectedoel{% endif %}"
                 >
 
             </label>
@@ -141,10 +131,11 @@
                     inputmode="numeric"
                     type="number"
                     min="0"
-                    value="{{ bestaand['c' ~ n ~ '_blauw'] if bestaand and bestaand['c' ~ n ~ '_blauw'] else '' }}"
+                    value="{{ collecties[n].blauw if collecties[n].blauw else '' }}"
                     name="c{{ n }}_blauw"
                     data-value="0.75"
                     data-type="bonnen"
+                    {% if bevestigingen[n] %}readonly{% endif %}
                 >
 
             </label>
@@ -158,10 +149,11 @@
                     inputmode="numeric"
                     type="number"
                     min="0"
-                    value="{{ bestaand['c' ~ n ~ '_groen'] if bestaand and bestaand['c' ~ n ~ '_groen'] else '' }}"
+                    value="{{ collecties[n].groen if collecties[n].groen else '' }}"
                     name="c{{ n }}_groen"
                     data-value="1"
                     data-type="bonnen"
+                    {% if bevestigingen[n] %}readonly{% endif %}
                 >
 
             </label>
@@ -206,10 +198,11 @@
                     inputmode="numeric"
                     type="number"
                     min="0"
-                    value="{{ bestaand['c' ~ n ~ '_munt_' ~ v] if bestaand and bestaand['c' ~ n ~ '_munt_' ~ v] else '' }}"
+                    value="{{ collecties[n]['munt_' ~ v] if collecties[n]['munt_' ~ v] else '' }}"
                     name="c{{ n }}_munt_{{ v }}"
                     data-value="{{ v }}"
                     data-type="briefgeld"
+                    {% if bevestigingen[n] %}readonly{% endif %}
                 >
 
             </label>
@@ -252,11 +245,12 @@
                 type="number"
                 min="0"
                 step="0.01"
-                value="{{ bestaand['c' ~ n ~ '_overig'] if bestaand and bestaand['c' ~ n ~ '_overig'] else '' }}"
+                value="{{ collecties[n].overig if collecties[n].overig else '' }}"
                 name="c{{ n }}_overig"
                 data-direct="1"
                 data-type="muntgeld"
                 placeholder="0,00"
+                {% if bevestigingen[n] %}readonly{% endif %}
             >
 
         </label>
@@ -289,6 +283,25 @@
                 € 0,00
             </strong>
 
+        </div>
+
+        <div class="collecte-bevestiging">
+            <button
+                class="btn collecte-bevestig"
+                type="button"
+                data-confirm-collecte="{{ n }}"
+                {% if bevestigingen[n] %}hidden{% endif %}
+            >
+                Collecte bevestigen
+            </button>
+            <button
+                class="btn secondary collecte-wijzig"
+                type="button"
+                data-edit-collecte="{{ n }}"
+                {% if not bevestigingen[n] %}hidden{% endif %}
+            >
+                Telling wijzigen
+            </button>
         </div>
 
 
@@ -365,7 +378,7 @@
     <section class="live-total">
 
         <span>
-            Totaal van deze zondag
+            Totale opbrengst inclusief collectebonnen
         </span>
 
         <strong id="grandTotal">
@@ -373,8 +386,24 @@
         </strong>
 
         <small>
-            Inclusief eventuele derde collecte
+            Inclusief eventuele derde en vierde collecte
             en extra storting
+        </small>
+
+    </section>
+
+    <section class="live-total">
+
+        <span>
+            Stortingsbedrag (muntgeld + briefgeld)
+        </span>
+
+        <strong id="depositTotal">
+            € 0,00
+        </strong>
+
+        <small>
+            Inclusief eventuele extra storting
         </small>
 
     </section>
@@ -509,7 +538,10 @@ function collecteTotaal(n) {
         formatter.format(totaal);
 
 
-    return totaal;
+    return {
+        totaal,
+        contant
+    };
 
 }
 
@@ -529,6 +561,8 @@ function berekenAlles() {
     const t3 =
         collecteTotaal(3);
 
+    const t4 =
+        collecteTotaal(4);
 
     const extraInput =
         document.querySelector(
@@ -540,8 +574,25 @@ function berekenAlles() {
         parseFloat(extraInput.value) || 0;
 
 
+    const t3Actief =
+        document.querySelector('[name="doel_3"]').value.trim() !== '';
+
+    const t4Actief =
+        document.querySelector('[name="doel_4"]').value.trim() !== '';
+
     const grandTotal =
-        t1 + t2 + t3 + extra;
+        t1.totaal
+        + t2.totaal
+        + (t3Actief ? t3.totaal : 0)
+        + (t4Actief ? t4.totaal : 0)
+        + extra;
+
+    const stortingsbedrag =
+        t1.contant
+        + t2.contant
+        + (t3Actief ? t3.contant : 0)
+        + (t4Actief ? t4.contant : 0)
+        + extra;
 
 
     document.getElementById(
@@ -549,7 +600,128 @@ function berekenAlles() {
     ).textContent =
         formatter.format(grandTotal);
 
+    document.getElementById(
+        'depositTotal'
+    ).textContent =
+        formatter.format(stortingsbedrag);
+
 }
+
+
+function toonCollecte(n) {
+
+    document
+        .querySelectorAll('[data-collecte-tab]')
+        .forEach(button => {
+            const actief = button.dataset.collecteTab === String(n);
+            button.setAttribute('aria-selected', String(actief));
+        });
+
+    document
+        .querySelectorAll('[data-collecte-panel]')
+        .forEach(panel => {
+            panel.hidden = panel.dataset.collectePanel !== String(n);
+        });
+
+}
+
+
+document
+    .querySelectorAll('[data-collecte-tab]')
+    .forEach(button => {
+        button.addEventListener('click', () => {
+            toonCollecte(button.dataset.collecteTab);
+        });
+    });
+
+
+function toonBevestigingsfout(bericht) {
+
+    const melding = document.getElementById('collecteNotice');
+    melding.textContent = bericht;
+    melding.hidden = false;
+
+}
+
+
+async function stuurBevestigingsactie(url, body) {
+
+    const response = await fetch(url, {
+        method: 'POST',
+        body
+    });
+    const resultaat = await response.json();
+
+    if (!response.ok) {
+        throw new Error(resultaat.error || 'De actie is niet gelukt.');
+    }
+
+}
+
+
+document
+    .querySelectorAll('[data-confirm-collecte]')
+    .forEach(button => {
+        button.addEventListener('click', async () => {
+            const n = button.dataset.confirmCollecte;
+            const panel = document.querySelector(`[data-collecte-panel="${n}"]`);
+            const formulier = document.getElementById('telform');
+
+            try {
+                await stuurBevestigingsactie(
+                    `/tellen/bevestigen/${n}`,
+                    new FormData(formulier)
+                );
+
+                panel.querySelectorAll('input:not([type="hidden"]), textarea')
+                    .forEach(input => {
+                        input.readOnly = true;
+                    });
+                panel.dataset.confirmed = 'true';
+                button.hidden = true;
+                panel.querySelector(`[data-edit-collecte="${n}"]`).hidden = false;
+                document.querySelector(
+                    `[data-collecte-tab="${n}"] [data-status-label]`
+                ).textContent = '✓ Bevestigd';
+                document.getElementById('collecteNotice').hidden = true;
+            } catch (error) {
+                toonCollecteBevestigingsfout(error.message);
+            }
+        });
+    });
+
+
+document
+    .querySelectorAll('[data-edit-collecte]')
+    .forEach(button => {
+        button.addEventListener('click', async () => {
+            const n = button.dataset.editCollecte;
+            const formulier = new FormData();
+            formulier.set('datum', document.querySelector('[name="datum"]').value);
+
+            try {
+                await stuurBevestigingsactie(
+                    `/tellen/wijzigen/${n}`,
+                    formulier
+                );
+
+                const panel = document.querySelector(`[data-collecte-panel="${n}"]`);
+                panel.querySelectorAll('input:not([type="hidden"]), textarea')
+                    .forEach(input => {
+                        input.readOnly = false;
+                    });
+                panel.dataset.confirmed = 'false';
+                button.hidden = true;
+                panel.querySelector(`[data-confirm-collecte="${n}"]`).hidden = false;
+                document.querySelector(
+                    `[data-collecte-tab="${n}"] [data-status-label]`
+                ).textContent = '';
+                document.getElementById('collecteNotice').hidden = true;
+            } catch (error) {
+                toonCollecteBevestigingsfout(error.message);
+            }
+        });
+    });
 
 
 /* ==========================================

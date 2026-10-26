@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from pathlib import Path
 
@@ -7,7 +8,9 @@ from pathlib import Path
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "data" / "collectes.db"
+DB_PATH = Path(
+    os.getenv("DB_PATH") or BASE_DIR / "data" / "collectes.db"
+)
 
 DB_PATH.parent.mkdir(
     parents=True,
@@ -78,7 +81,10 @@ def init_db():
                 doel_2 TEXT NOT NULL DEFAULT '',
 
                 doelcode_3 TEXT NOT NULL DEFAULT '',
-                doel_3 TEXT NOT NULL DEFAULT ''
+                doel_3 TEXT NOT NULL DEFAULT '',
+
+                doelcode_4 TEXT NOT NULL DEFAULT '',
+                doel_4 TEXT NOT NULL DEFAULT ''
 
             );
 
@@ -100,6 +106,8 @@ def init_db():
 
                 doelcode_3 TEXT NOT NULL DEFAULT '',
                 doel_3 TEXT NOT NULL DEFAULT '',
+                doelcode_4 TEXT NOT NULL DEFAULT '',
+                doel_4 TEXT NOT NULL DEFAULT '',
 
 
                 -- COLLECTE 1
@@ -140,6 +148,18 @@ def init_db():
 
                 c3_overig REAL NOT NULL DEFAULT 0,
 
+                -- COLLECTE 4
+
+                c4_blauw INTEGER NOT NULL DEFAULT 0,
+                c4_groen INTEGER NOT NULL DEFAULT 0,
+
+                c4_munt_5 INTEGER NOT NULL DEFAULT 0,
+                c4_munt_10 INTEGER NOT NULL DEFAULT 0,
+                c4_munt_20 INTEGER NOT NULL DEFAULT 0,
+                c4_munt_50 INTEGER NOT NULL DEFAULT 0,
+
+                c4_overig REAL NOT NULL DEFAULT 0,
+
 
                 -- AFRONDING
 
@@ -153,6 +173,22 @@ def init_db():
                     DEFAULT CURRENT_TIMESTAMP
 
             );
+
+            CREATE TABLE IF NOT EXISTS collecte_bevestigingen (
+                datum TEXT NOT NULL,
+                collecte INTEGER NOT NULL CHECK (collecte BETWEEN 1 AND 4),
+                doelcode TEXT NOT NULL DEFAULT '',
+                doel TEXT NOT NULL DEFAULT '',
+                blauw INTEGER NOT NULL DEFAULT 0,
+                groen INTEGER NOT NULL DEFAULT 0,
+                munt_5 INTEGER NOT NULL DEFAULT 0,
+                munt_10 INTEGER NOT NULL DEFAULT 0,
+                munt_20 INTEGER NOT NULL DEFAULT 0,
+                munt_50 INTEGER NOT NULL DEFAULT 0,
+                overig REAL NOT NULL DEFAULT 0,
+                bevestigd_op TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (datum, collecte)
+            );
             """
         )
 
@@ -161,7 +197,7 @@ def init_db():
         # MIGRATIE COLLECTEDOELEN
         # ====================================================
 
-        for nummer in (1, 2, 3):
+        for nummer in (1, 2, 3, 4):
 
             _add_column_if_missing(
                 conn,
@@ -170,19 +206,19 @@ def init_db():
                 "TEXT NOT NULL DEFAULT ''"
             )
 
-        _add_column_if_missing(
-            conn,
-            "collectedoelen",
-            "doel_3",
-            "TEXT NOT NULL DEFAULT ''"
-        )
+            _add_column_if_missing(
+                conn,
+                "collectedoelen",
+                f"doel_{nummer}",
+                "TEXT NOT NULL DEFAULT ''"
+            )
 
 
         # ====================================================
         # MIGRATIE TELLINGEN
         # ====================================================
 
-        for nummer in (1, 2, 3):
+        for nummer in (1, 2, 3, 4):
 
             _add_column_if_missing(
                 conn,
@@ -191,12 +227,12 @@ def init_db():
                 "TEXT NOT NULL DEFAULT ''"
             )
 
-        _add_column_if_missing(
-            conn,
-            "tellingen",
-            "doel_3",
-            "TEXT NOT NULL DEFAULT ''"
-        )
+            _add_column_if_missing(
+                conn,
+                "tellingen",
+                f"doel_{nummer}",
+                "TEXT NOT NULL DEFAULT ''"
+            )
 
 
         # ====================================================
@@ -224,6 +260,33 @@ def init_db():
             conn,
             "tellingen",
             "c3_overig",
+            "REAL NOT NULL DEFAULT 0"
+        )
+
+        # ====================================================
+        # MIGRATIE COLLECTE 4
+        # ====================================================
+
+        for field in (
+            "blauw",
+            "groen",
+            "munt_5",
+            "munt_10",
+            "munt_20",
+            "munt_50"
+        ):
+
+            _add_column_if_missing(
+                conn,
+                "tellingen",
+                f"c4_{field}",
+                "INTEGER NOT NULL DEFAULT 0"
+            )
+
+        _add_column_if_missing(
+            conn,
+            "tellingen",
+            "c4_overig",
             "REAL NOT NULL DEFAULT 0"
         )
 
@@ -297,6 +360,7 @@ def bereken_zondagtotaal(telling):
     collecte_1 = bereken_collecte(telling, 1)
     collecte_2 = bereken_collecte(telling, 2)
     collecte_3 = bereken_collecte(telling, 3)
+    collecte_4 = bereken_collecte(telling, 4)
 
     extra_storting = (
         telling["extra_storting"] or 0
@@ -309,7 +373,32 @@ def bereken_zondagtotaal(telling):
         +
         collecte_3["totaal"]
         +
+        collecte_4["totaal"]
+        +
         extra_storting
     )
 
     return round(totaal, 2)
+
+
+def bereken_stortingsbedrag(telling, nummer=None):
+
+    extra_storting = (
+        telling["extra_storting"] or 0
+    )
+
+    if nummer is not None:
+        contant = bereken_collecte(telling, nummer)["contant"]
+        return round(
+            contant + (extra_storting if nummer == 1 else 0),
+            2,
+        )
+
+    contant = sum(
+        bereken_collecte(telling, collecte_nummer)["contant"]
+        for collecte_nummer in range(1, 5)
+        if collecte_nummer < 3
+        or str(telling[f"doel_{collecte_nummer}"] or "").strip()
+    )
+
+    return round(contant + extra_storting, 2)

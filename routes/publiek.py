@@ -1,16 +1,17 @@
 from datetime import date, datetime
 from io import BytesIO
+import math
 from urllib.parse import quote_plus
 
 from fastapi import APIRouter, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from database import get_db
+from database import bereken_stortingsbedrag, get_db
 from auth import (
     configured_password_hash,
     configured_username,
@@ -91,6 +92,24 @@ def derde_collecte_actief(row):
     return bool(
         str(row["doel_3"] or "").strip()
     )
+
+
+def vierde_collecte_actief(row):
+
+    return bool(
+        str(row["doel_4"] or "").strip()
+    )
+
+
+COLLECTE_VELDEN = (
+    "blauw",
+    "groen",
+    "munt_5",
+    "munt_10",
+    "munt_20",
+    "munt_50",
+    "overig",
+)
 
 
 # ============================================================
@@ -262,6 +281,68 @@ def tellen(
             (datum,),
         ).fetchone()
 
+        rows_bevestigingen = db.execute(
+            """
+            SELECT *
+            FROM collecte_bevestigingen
+            WHERE datum=?
+            """,
+            (datum,),
+        ).fetchall()
+
+    collecties = {}
+    bevestigingen = {}
+
+    for nummer in range(1, 5):
+        bevestiging = next(
+            (
+                row
+                for row in rows_bevestigingen
+                if row["collecte"] == nummer
+            ),
+            None,
+        )
+        bevestigingen[nummer] = bevestiging is not None
+
+        if bevestiging:
+            collecties[nummer] = {
+                "doelcode": bevestiging["doelcode"],
+                "doel": bevestiging["doel"],
+                **{
+                    veld: bevestiging[veld]
+                    for veld in COLLECTE_VELDEN
+                },
+            }
+        else:
+            collecties[nummer] = {
+                "doelcode": (
+                    bestaand[f"doelcode_{nummer}"]
+                    if bestaand
+                    else (
+                        doel[f"doelcode_{nummer}"]
+                        if doel
+                        else ""
+                    )
+                ),
+                "doel": (
+                    bestaand[f"doel_{nummer}"]
+                    if bestaand
+                    else (
+                        doel[f"doel_{nummer}"]
+                        if doel
+                        else ""
+                    )
+                ),
+                **{
+                    veld: (
+                        bestaand[f"c{nummer}_{veld}"]
+                        if bestaand
+                        else 0
+                    )
+                    for veld in COLLECTE_VELDEN
+                },
+            }
+
     return templates.TemplateResponse(
         request=request,
         name="tellen.html",
@@ -269,6 +350,8 @@ def tellen(
             "datum": datum,
             "doel": doel,
             "bestaand": bestaand,
+            "collecties": collecties,
+            "bevestigingen": bevestigingen,
         },
     )
 
@@ -286,6 +369,8 @@ def telling_opslaan(
 
     doelcode_3: str = Form(""),
     doel_3: str = Form(""),
+    doelcode_4: str = Form(""),
+    doel_4: str = Form(""),
 
     c1_blauw: int = Form(0),
     c1_groen: int = Form(0),
@@ -311,6 +396,14 @@ def telling_opslaan(
     c3_munt_50: int = Form(0),
     c3_overig: float = Form(0),
 
+    c4_blauw: int = Form(0),
+    c4_groen: int = Form(0),
+    c4_munt_5: int = Form(0),
+    c4_munt_10: int = Form(0),
+    c4_munt_20: int = Form(0),
+    c4_munt_50: int = Form(0),
+    c4_overig: float = Form(0),
+
     extra_storting: float = Form(0),
     opmerkingen: str = Form(""),
     geteld_door: str = Form(...),
@@ -318,20 +411,54 @@ def telling_opslaan(
 
     data = locals().copy()
 
-    columns = list(data.keys())
-
-    placeholders = ",".join(
-        "?"
-        for _ in columns
-    )
-
-    updates = ",".join(
-        f"{column}=excluded.{column}"
-        for column in columns
-        if column != "datum"
-    )
-
     with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        bevestigingen = db.execute(
+            """
+            SELECT *
+            FROM collecte_bevestigingen
+            WHERE datum=?
+            """,
+            (datum,),
+        ).fetchall()
+
+        for bevestiging in bevestigingen:
+            nummer = bevestiging["collecte"]
+            beschermde_velden = {
+                f"doelcode_{nummer}": bevestiging["doelcode"],
+                f"doel_{nummer}": bevestiging["doel"],
+                **{
+                    f"c{nummer}_{veld}": bevestiging[veld]
+                    for veld in COLLECTE_VELDEN
+                },
+            }
+
+            for veld, bewaarde_waarde in beschermde_velden.items():
+                waarde = data[veld]
+                if isinstance(bewaarde_waarde, str):
+                    komt_overeen = waarde.strip() == bewaarde_waarde
+                else:
+                    komt_overeen = waarde == bewaarde_waarde
+
+                if not komt_overeen:
+                    return HTMLResponse(
+                        "Deze collecte is bevestigd en vergrendeld. "
+                        "Kies eerst 'Telling wijzigen'.",
+                        status_code=409,
+                    )
+
+        columns = list(data.keys())
+
+        placeholders = ",".join(
+            "?"
+            for _ in columns
+        )
+
+        updates = ",".join(
+            f"{column}=excluded.{column}"
+            for column in columns
+            if column != "datum"
+        )
 
         db.execute(
             f"""
@@ -356,6 +483,145 @@ def telling_opslaan(
         f"/controle/{datum}",
         status_code=303,
     )
+
+
+@router.post("/tellen/bevestigen/{nummer}")
+async def collecte_bevestigen(
+    nummer: int,
+    request: Request,
+):
+
+    if nummer not in range(1, 5):
+        return JSONResponse(
+            {"error": "Ongeldig collectenummer."},
+            status_code=404,
+        )
+
+    form = await request.form()
+    datum = str(form.get("datum", "")).strip()
+
+    try:
+        date.fromisoformat(datum)
+        waarden = {
+            veld: (
+                float(str(form.get(f"c{nummer}_{veld}", "0") or "0"))
+                if veld == "overig"
+                else int(str(form.get(f"c{nummer}_{veld}", "0") or "0"))
+            )
+            for veld in COLLECTE_VELDEN
+        }
+    except (TypeError, ValueError):
+        return JSONResponse(
+            {"error": "Datum of aantallen zijn ongeldig."},
+            status_code=422,
+        )
+
+    if any(waarde < 0 for waarde in waarden.values()):
+        return JSONResponse(
+            {"error": "Aantallen en bedragen mogen niet negatief zijn."},
+            status_code=422,
+        )
+
+    if not math.isfinite(waarden["overig"]):
+        return JSONResponse(
+            {"error": "Muntgeld moet een geldig bedrag zijn."},
+            status_code=422,
+        )
+
+    doelcode = str(form.get(f"doelcode_{nummer}", "")).strip()
+    doel = str(form.get(f"doel_{nummer}", "")).strip()
+
+    if nummer < 3 and not doel:
+        return JSONResponse(
+            {"error": "Vul eerst de omschrijving van deze collecte in."},
+            status_code=422,
+        )
+
+    with get_db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        bestaand = db.execute(
+            """
+            SELECT 1
+            FROM collecte_bevestigingen
+            WHERE datum=? AND collecte=?
+            """,
+            (datum, nummer),
+        ).fetchone()
+
+        if bestaand:
+            return JSONResponse(
+                {"error": "Deze collecte is al bevestigd."},
+                status_code=409,
+            )
+
+        db.execute(
+            """
+            INSERT INTO collecte_bevestigingen (
+                datum, collecte, doelcode, doel,
+                blauw, groen, munt_5, munt_10, munt_20, munt_50, overig
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                datum,
+                nummer,
+                doelcode,
+                doel,
+                waarden["blauw"],
+                waarden["groen"],
+                waarden["munt_5"],
+                waarden["munt_10"],
+                waarden["munt_20"],
+                waarden["munt_50"],
+                waarden["overig"],
+            ),
+        )
+        db.commit()
+
+    return JSONResponse({"bevestigd": True})
+
+
+@router.post("/tellen/wijzigen/{nummer}")
+async def collecte_wijzigen(
+    nummer: int,
+    request: Request,
+):
+
+    if nummer not in range(1, 5):
+        return JSONResponse(
+            {"error": "Ongeldig collectenummer."},
+            status_code=404,
+        )
+
+    form = await request.form()
+    datum = str(form.get("datum", "")).strip()
+
+    try:
+        date.fromisoformat(datum)
+    except ValueError:
+        return JSONResponse(
+            {"error": "Datum is ongeldig."},
+            status_code=422,
+        )
+
+    with get_db() as db:
+        resultaat = db.execute(
+            """
+            DELETE FROM collecte_bevestigingen
+            WHERE datum=? AND collecte=?
+            """,
+            (datum, nummer),
+        )
+
+        if resultaat.rowcount == 0:
+            return JSONResponse(
+                {"error": "Deze collecte is niet bevestigd."},
+                status_code=409,
+            )
+
+        db.commit()
+
+    return JSONResponse({"bevestigd": False})
 
 
 # ============================================================
@@ -392,9 +658,13 @@ def controle(
     t1 = totals(row, 1)
     t2 = totals(row, 2)
     t3 = totals(row, 3)
+    t4 = totals(row, 4)
 
     heeft_derde = (
         derde_collecte_actief(row)
+    )
+    heeft_vierde = (
+        vierde_collecte_actief(row)
     )
 
     totaal = (
@@ -408,8 +678,15 @@ def controle(
             else 0
         )
         +
+        (
+            t4[4]
+            if heeft_vierde
+            else 0
+        )
+        +
         (row["extra_storting"] or 0)
     )
+    stortingsbedrag = bereken_stortingsbedrag(row)
 
     return templates.TemplateResponse(
         request=request,
@@ -419,8 +696,11 @@ def controle(
             "t1": t1,
             "t2": t2,
             "t3": t3,
+            "t4": t4,
             "heeft_derde": heeft_derde,
+            "heeft_vierde": heeft_vierde,
             "totaal": totaal,
+            "stortingsbedrag": stortingsbedrag,
         },
     )
 
@@ -477,6 +757,8 @@ def doel_opslaan(
 
     doelcode_3: str = Form(""),
     doel_3: str = Form(""),
+    doelcode_4: str = Form(""),
+    doel_4: str = Form(""),
 ):
 
     with get_db() as db:
@@ -490,9 +772,11 @@ def doel_opslaan(
                 doelcode_2,
                 doel_2,
                 doelcode_3,
-                doel_3
+                doel_3,
+                doelcode_4,
+                doel_4
             )
-            VALUES(?,?,?,?,?,?,?)
+            VALUES(?,?,?,?,?,?,?,?,?)
 
             ON CONFLICT(datum)
             DO UPDATE SET
@@ -501,7 +785,9 @@ def doel_opslaan(
                 doelcode_2=excluded.doelcode_2,
                 doel_2=excluded.doel_2,
                 doelcode_3=excluded.doelcode_3,
-                doel_3=excluded.doel_3
+                doel_3=excluded.doel_3,
+                doelcode_4=excluded.doelcode_4,
+                doel_4=excluded.doel_4
             """,
             (
                 datum,
@@ -514,6 +800,8 @@ def doel_opslaan(
 
                 doelcode_3.strip(),
                 doel_3.strip(),
+                doelcode_4.strip(),
+                doel_4.strip(),
             ),
         )
 
@@ -650,18 +938,12 @@ async def doelen_importeren(
         # ----------------------------------------------------
         # We lezen bewust op kolompositie.
         #
-        # A = Datum
-        # B = Doel
-        # C = Collecte 1
-        # D = Doel
-        # E = Collecte 2
-        # F = Doel
-        # G = Collecte 3
+        # A = Datum, followed by alternating code and description columns.
         #
-        # Dit is nodig omdat "Doel" drie keer voorkomt.
+        # Dit is nodig omdat "Doel" vier keer voorkomt.
         # ----------------------------------------------------
 
-        verwachte_headers = [
+        verwachte_headers_3 = [
             "datum",
             "doel",
             "collecte 1",
@@ -671,9 +953,15 @@ async def doelen_importeren(
             "collecte 3",
         ]
 
+        verwachte_headers_4 = [
+            *verwachte_headers_3,
+            "doel",
+            "collecte 4",
+        ]
+
         werkelijke_headers = []
 
-        for kolom in range(1, 8):
+        for kolom in range(1, 10):
 
             waarde = ws.cell(
                 1,
@@ -688,17 +976,25 @@ async def doelen_importeren(
                 .lower()
             )
 
+        while werkelijke_headers and not werkelijke_headers[-1]:
+            werkelijke_headers.pop()
+
         if (
-            werkelijke_headers
-            != verwachte_headers
+            werkelijke_headers != verwachte_headers_3
+            and werkelijke_headers != verwachte_headers_4
         ):
 
             raise ValueError(
-                "De eerste rij moet exact zijn: "
+                "De eerste rij moet één van deze formaten bevatten: "
                 "Datum | Doel | Collecte 1 | "
                 "Doel | Collecte 2 | "
-                "Doel | Collecte 3"
+                "Doel | Collecte 3 (optioneel), of "
+                "Doel | Collecte 3 | Doel | Collecte 4"
             )
+
+        heeft_vierde_import = (
+            werkelijke_headers == verwachte_headers_4
+        )
 
         aantal = 0
 
@@ -737,6 +1033,14 @@ async def doelen_importeren(
                     ws.cell(rij, 7).value
                 )
 
+                doelcode_4 = excel_tekst(
+                    ws.cell(rij, 8).value
+                )
+
+                doel_4 = excel_tekst(
+                    ws.cell(rij, 9).value
+                )
+
                 # Helemaal lege regel overslaan
 
                 if (
@@ -747,6 +1051,8 @@ async def doelen_importeren(
                     and not doel_2
                     and not doelcode_3
                     and not doel_3
+                    and not doelcode_4
+                    and not doel_4
                 ):
 
                     continue
@@ -799,37 +1105,52 @@ async def doelen_importeren(
                         f"als Collecte 3 in."
                     )
 
-                db.execute(
-                    """
-                    INSERT INTO collectedoelen(
-                        datum,
-                        doelcode_1,
-                        doel_1,
-                        doelcode_2,
-                        doel_2,
-                        doelcode_3,
-                        doel_3
+                if (
+                    bool(doelcode_4)
+                    != bool(doel_4)
+                ):
+                    raise ValueError(
+                        f"Vul op rij {rij} voor "
+                        f"collecte 4 zowel Doel "
+                        f"als Collecte 4 in."
                     )
-                    VALUES(?,?,?,?,?,?,?)
 
-                    ON CONFLICT(datum)
-                    DO UPDATE SET
-                        doelcode_1=excluded.doelcode_1,
-                        doel_1=excluded.doel_1,
-                        doelcode_2=excluded.doelcode_2,
-                        doel_2=excluded.doel_2,
-                        doelcode_3=excluded.doelcode_3,
-                        doel_3=excluded.doel_3
+                kolommen = [
+                    "datum",
+                    "doelcode_1",
+                    "doel_1",
+                    "doelcode_2",
+                    "doel_2",
+                    "doelcode_3",
+                    "doel_3",
+                ]
+                waarden = [
+                    datum,
+                    doelcode_1,
+                    doel_1,
+                    doelcode_2,
+                    doel_2,
+                    doelcode_3,
+                    doel_3,
+                ]
+
+                if heeft_vierde_import:
+                    kolommen.extend(("doelcode_4", "doel_4"))
+                    waarden.extend((doelcode_4, doel_4))
+
+                updates = ",".join(
+                    f"{kolom}=excluded.{kolom}"
+                    for kolom in kolommen
+                    if kolom != "datum"
+                )
+
+                db.execute(
+                    f"""
+                    INSERT INTO collectedoelen({','.join(kolommen)})
+                    VALUES({','.join('?' for _ in kolommen)})
+                    ON CONFLICT(datum) DO UPDATE SET {updates}
                     """,
-                    (
-                        datum,
-                        doelcode_1,
-                        doel_1,
-                        doelcode_2,
-                        doel_2,
-                        doelcode_3,
-                        doel_3,
-                    ),
+                    waarden,
                 )
 
                 aantal += 1
@@ -877,6 +1198,8 @@ def doelen_voorbeeld():
             "Collecte 2",
             "Doel",
             "Collecte 3",
+            "Doel",
+            "Collecte 4",
         ]
     )
 
@@ -891,6 +1214,8 @@ def doelen_voorbeeld():
             "Diaconie",
             "",
             "",
+            "",
+            "",
         ]
     )
 
@@ -903,6 +1228,8 @@ def doelen_voorbeeld():
             "Diaconie",
             "301",
             "Extra doel",
+            "401",
+            "Vierde doel",
         ]
     )
 
@@ -918,13 +1245,18 @@ def doelen_voorbeeld():
             fgColor="166534",
         )
 
-    ws.column_dimensions["A"].width = 16
-    ws.column_dimensions["B"].width = 14
-    ws.column_dimensions["C"].width = 34
-    ws.column_dimensions["D"].width = 14
-    ws.column_dimensions["E"].width = 34
-    ws.column_dimensions["F"].width = 14
-    ws.column_dimensions["G"].width = 34
+    for column, width in {
+        "A": 16,
+        "B": 14,
+        "C": 34,
+        "D": 14,
+        "E": 34,
+        "F": 14,
+        "G": 34,
+        "H": 14,
+        "I": 34,
+    }.items():
+        ws.column_dimensions[column].width = width
 
     for cell in ws["A"][1:]:
 
@@ -977,6 +1309,7 @@ def make_excel(rows):
         "Totaal contant",
         "Totaal collecte",
         "Extra storting",
+        "Stortingsbedrag",
         "Geteld door",
         "Opmerkingen",
     ]
@@ -1006,6 +1339,10 @@ def make_excel(rows):
         if derde_collecte_actief(row):
 
             nummers.append(3)
+
+        if vierde_collecte_actief(row):
+
+            nummers.append(4)
 
         for nummer in nummers:
 
@@ -1054,13 +1391,15 @@ def make_excel(rows):
                         else 0
                     ),
 
+                    bereken_stortingsbedrag(row, nummer),
+
                     row["geteld_door"],
 
                     row["opmerkingen"],
                 ]
             )
 
-    # Geldkolommen G t/m L
+    # Geldkolommen G t/m M
 
     for excel_row in ws.iter_rows(
         min_row=2
@@ -1073,6 +1412,7 @@ def make_excel(rows):
             10,
             11,
             12,
+            13,
         ):
 
             excel_row[
@@ -1094,6 +1434,7 @@ def make_excel(rows):
         18,
         18,
         17,
+        19,
         24,
         42,
     ]

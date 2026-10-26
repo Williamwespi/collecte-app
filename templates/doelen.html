@@ -11,7 +11,7 @@
 
     <p>
         Leg de collectedoelen vooraf vast.
-        Collecte 3 is optioneel en kan tijdens het tellen worden aangepast.
+        Collectes 3 en 4 zijn optioneel en kunnen tijdens het tellen worden aangepast.
     </p>
 </div>
 
@@ -39,8 +39,8 @@
 
     <p>
         Upload een Excelbestand met per collecte een
-        <strong>doel</strong> en een <strong>omschrijving</strong>.
-        Collecte 3 is optioneel. Bestaande datums worden bijgewerkt.
+        <strong>doelcode</strong> en een <strong>omschrijving</strong>.
+        Collectes 3 en 4 zijn optioneel. Bestaande datums worden bijgewerkt.
     </p>
 
     <form
@@ -241,6 +241,48 @@
 
         </div>
 
+        <!-- COLLECTE 4 -->
+
+        <div class="doel-rij doel-rij-optioneel">
+
+            <div class="doel-rij-kop">
+
+                <span class="doel-nummer">
+                    4
+                </span>
+
+                <div>
+                    <strong>Collecte 4</strong>
+                    <small>Optioneel</small>
+                </div>
+
+            </div>
+
+
+            <label class="doel-code">
+
+                Doelcode
+
+                <input
+                    name="doelcode_4"
+                >
+
+            </label>
+
+
+            <label class="doel-omschrijving">
+
+                Collecte
+
+                <input
+                    name="doel_4"
+                    placeholder="Bijv. Extra collecte"
+                >
+
+            </label>
+
+        </div>
+
 
         <!-- OPSLAAN -->
 
@@ -304,6 +346,18 @@
                         {{ r.doelcode_3 }} ·
                     {% endif %}
                     {{ r.doel_3 }}
+
+                {% endif %}
+
+                {% if r.doel_4 %}
+
+                    &nbsp;&nbsp;
+
+                    4.
+                    {% if r.doelcode_4 %}
+                        {{ r.doelcode_4 }} ·
+                    {% endif %}
+                    {{ r.doel_4 }}
 
                 {% endif %}
 

@@ -98,6 +98,36 @@
     </section>
     {% endif %}
 
+    {% if heeft_vierde %}
+    <section class="card extra-summary">
+        <span class="eyebrow">COLLECTE 4 · EXTRA</span>
+        <h2>{{ r.doel_4 }}</h2>
+
+        <dl>
+            <div>
+                <dt>Collectebonnen</dt>
+                <dd>{{ t4[0]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Briefgeld</dt>
+                <dd>{{ t4[2]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Muntgeld</dt>
+                <dd>{{ t4[1]|euro }}</dd>
+            </div>
+            <div>
+                <dt>Totaal contant</dt>
+                <dd>{{ t4[3]|euro }}</dd>
+            </div>
+            <div class="sum">
+                <dt>Totaal collecte 4</dt>
+                <dd>{{ t4[4]|euro }}</dd>
+            </div>
+        </dl>
+    </section>
+    {% endif %}
+
 </div>
 
 {% if r.extra_storting %}
@@ -109,7 +139,7 @@
 {% endif %}
 
 <section class="grand">
-    <span>Totaal storting deze zondag</span>
+    <span>Totale opbrengst inclusief collectebonnen</span>
     <strong>{{ totaal|euro }}</strong>
 
     {% if r.extra_storting %}
@@ -118,7 +148,17 @@
     </small>
     {% else %}
     <small>
-        Totaal van alle collectes
+        Inclusief opbrengst van alle collectes
+    </small>
+    {% endif %}
+</section>
+
+<section class="grand">
+    <span>Stortingsbedrag (muntgeld + briefgeld)</span>
+    <strong>{{ stortingsbedrag|euro }}</strong>
+    {% if r.extra_storting %}
+    <small>
+        Inclusief extra storting van {{ r.extra_storting|euro }}
     </small>
     {% endif %}
 </section>

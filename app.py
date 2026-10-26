@@ -1,10 +1,13 @@
 import os
 import secrets
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+
+load_dotenv()
 
 from database import init_db
 from routes.publiek import router
