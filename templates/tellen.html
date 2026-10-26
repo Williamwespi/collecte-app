@@ -22,6 +22,9 @@
 
 </div>
 
+{% if fout %}
+<div class="notice error" role="alert">{{ fout }}</div>
+{% endif %}
 
 <form
     method="post"
@@ -35,7 +38,7 @@
         value="{{ datum }}"
     >
 
-    <div class="collecte-tabs" role="tablist" aria-label="Selecteer een collecte">
+    <div class="collecte-tabs" role="tablist" aria-label="Selecteer een collecte of afronding">
         {% for n in (1, 2, 3, 4) %}
         <button
             class="collecte-tab collecte-tab-{{ 'standaard' if n < 3 else 'extra' }}"
@@ -46,12 +49,27 @@
             aria-selected="{{ 'true' if n == 1 else 'false' }}"
             data-collecte-tab="{{ n }}"
         >
-            <span>Collecte {{ n }}</span>
+            <span>
+                {% if n == 1 %}Collecte D
+                {% elif n == 2 %}Collecte K
+                {% else %}Collecte {{ n }}{% endif %}
+            </span>
             <span class="collecte-tab-status" data-status-label>
                 {% if bevestigingen[n] %}✓ Bevestigd{% endif %}
             </span>
         </button>
         {% endfor %}
+        <button
+            class="collecte-tab collecte-tab-afronding"
+            type="button"
+            role="tab"
+            id="collecte-tab-afronding"
+            aria-controls="collecte-afronding"
+            aria-selected="false"
+            data-collecte-tab="afronding"
+        >
+            <span>Afronding</span>
+        </button>
     </div>
 
     <div class="notice error" id="collecteNotice" role="alert" hidden></div>
@@ -74,7 +92,9 @@
             <div>
 
                 <span>
-                    Collecte {{ n }}
+                    {% if n == 1 %}Collecte D
+                    {% elif n == 2 %}Collecte K
+                    {% else %}Collecte {{ n }}{% endif %}
                 </span>
 
                 <small>
@@ -95,7 +115,7 @@
         <div class="grid2">
             <label>
 
-                Collecte {{ n }}
+                Omschrijving
 
                 <input
                     class="goal"
@@ -276,7 +296,7 @@
         <div class="subtotal">
 
             <span>
-                Totaal collecte {{ n }}
+                Totaal {% if n == 1 %}Collecte D{% elif n == 2 %}Collecte K{% else %}Collecte {{ n }}{% endif %}
             </span>
 
             <strong id="total{{ n }}">
@@ -311,25 +331,71 @@
     {% endfor %}
 
 
-    <!-- ==========================================
-         AFRONDING
-    =========================================== -->
+    <section
+        class="card collecte-panel afronding-panel"
+        id="collecte-afronding"
+        role="tabpanel"
+        aria-labelledby="collecte-tab-afronding"
+        data-collecte-panel="afronding"
+        hidden
+    >
+        <div class="collecte-head">
+            <div>
+                <span>Afronding</span>
+                <small>Controleer de collectes en rond de telling af.</small>
+            </div>
+        </div>
 
-    <section class="card">
+        <h3>Overzicht collectes</h3>
+        <div class="afronding-collectes">
+            {% for n in (1, 2, 3, 4) %}
+            <section class="afronding-collecte">
+                <div>
+                    <strong>
+                        {% if n == 1 %}Collecte D
+                        {% elif n == 2 %}Collecte K
+                        {% else %}Collecte {{ n }}{% endif %}
+                    </strong>
+                    <span data-summary-goal="{{ n }}">
+                        {{ collecties[n].doel or 'Geen collectedoel ingesteld' }}
+                    </span>
+                </div>
+                <strong data-summary-total="{{ n }}">€ 0,00</strong>
+                <span
+                    class="afronding-status"
+                    data-summary-status="{{ n }}"
+                    data-confirmed="{{ 'true' if bevestigingen[n] else 'false' }}"
+                >
+                    {% if n > 2 and not collecties[n].doel %}
+                        Niet gebruikt
+                    {% elif bevestigingen[n] %}
+                        ✓ Bevestigd
+                    {% else %}
+                        Nog niet bevestigd
+                    {% endif %}
+                </span>
+                <button class="btn secondary" type="button" data-open-collecte="{{ n }}">
+                    Naar collecte
+                </button>
+            </section>
+            {% endfor %}
+        </div>
 
-        <h3>
-            Afronding
-        </h3>
-
+        <h3>Gezamenlijke bedragen</h3>
+        <dl class="afronding-totalen">
+            <div>
+                <dt>Totaal collectebonnen</dt>
+                <dd id="vouchersTotal">€ 0,00</dd>
+            </div>
+            <div>
+                <dt>Totaal contant geld</dt>
+                <dd id="cashTotal">€ 0,00</dd>
+            </div>
+        </dl>
 
         <label>
-
             Extra storting
-
-            <small>
-                bijvoorbeeld koffiegeld
-            </small>
-
+            <small>Bijvoorbeeld koffiegeld</small>
             <input
                 inputmode="decimal"
                 type="number"
@@ -338,87 +404,39 @@
                 value="{{ bestaand.extra_storting if bestaand else 0 }}"
                 name="extra_storting"
             >
-
         </label>
 
+        <section class="live-total">
+            <span>Totale opbrengst inclusief collectebonnen</span>
+            <strong id="grandTotal">€ 0,00</strong>
+            <small>Inclusief eventuele extra storting</small>
+        </section>
+
+        <section class="live-total">
+            <span>Bedrag naar de bank (contant + extra storting)</span>
+            <strong id="depositTotal">€ 0,00</strong>
+            <small>Collectebonnen tellen niet mee in de bankstorting.</small>
+        </section>
 
         <label>
-
             Opmerkingen
-
-            <textarea
-                name="opmerkingen"
-                rows="3"
-            >{{ bestaand.opmerkingen if bestaand else '' }}</textarea>
-
+            <textarea name="opmerkingen" rows="3">{{ bestaand.opmerkingen if bestaand else '' }}</textarea>
         </label>
 
-
         <label>
-
             Geteld door
-
             <input
                 name="geteld_door"
                 required
                 value="{{ bestaand.geteld_door if bestaand else '' }}"
                 placeholder="Naam/namen"
             >
-
         </label>
 
-
+        <div class="sticky-submit">
+            <button class="btn" type="submit">Telling controleren</button>
+        </div>
     </section>
-
-
-    <!-- ==========================================
-         ZONDAGTOTAAL
-    =========================================== -->
-
-    <section class="live-total">
-
-        <span>
-            Totale opbrengst inclusief collectebonnen
-        </span>
-
-        <strong id="grandTotal">
-            € 0,00
-        </strong>
-
-        <small>
-            Inclusief eventuele derde en vierde collecte
-            en extra storting
-        </small>
-
-    </section>
-
-    <section class="live-total">
-
-        <span>
-            Stortingsbedrag (muntgeld + briefgeld)
-        </span>
-
-        <strong id="depositTotal">
-            € 0,00
-        </strong>
-
-        <small>
-            Inclusief eventuele extra storting
-        </small>
-
-    </section>
-
-
-    <div class="sticky-submit">
-
-        <button
-            class="btn"
-            type="submit"
-        >
-            Telling controleren
-        </button>
-
-    </div>
 
 
 </form>
@@ -539,6 +557,7 @@ function collecteTotaal(n) {
 
 
     return {
+        bonnen,
         totaal,
         contant
     };
@@ -580,6 +599,16 @@ function berekenAlles() {
     const t4Actief =
         document.querySelector('[name="doel_4"]').value.trim() !== '';
 
+    const collectes = [t1, t2, t3, t4];
+    const actieveCollectes = [true, true, t3Actief, t4Actief];
+    const bonnenTotaal = collectes.reduce(
+        (sum, collecte, index) => sum + (actieveCollectes[index] ? collecte.bonnen : 0),
+        0
+    );
+    const contantTotaal = collectes.reduce(
+        (sum, collecte, index) => sum + (actieveCollectes[index] ? collecte.contant : 0),
+        0
+    );
     const grandTotal =
         t1.totaal
         + t2.totaal
@@ -604,6 +633,28 @@ function berekenAlles() {
         'depositTotal'
     ).textContent =
         formatter.format(stortingsbedrag);
+
+    document.getElementById('vouchersTotal').textContent =
+        formatter.format(bonnenTotaal);
+    document.getElementById('cashTotal').textContent =
+        formatter.format(contantTotaal);
+
+    collectes.forEach((collecte, index) => {
+        const n = index + 1;
+        const doel = document.querySelector(`[name="doel_${n}"]`).value.trim();
+        const status = document.querySelector(`[data-summary-status="${n}"]`);
+        const bevestigd = status.dataset.confirmed === 'true';
+        document.querySelector(`[data-summary-total="${n}"]`).textContent =
+            formatter.format(actieveCollectes[index] ? collecte.totaal : 0);
+        document.querySelector(`[data-summary-goal="${n}"]`).textContent =
+            doel || 'Geen collectedoel ingesteld';
+        status.textContent =
+            !actieveCollectes[index]
+                ? 'Niet gebruikt'
+                : bevestigd
+                    ? '✓ Bevestigd'
+                    : 'Nog niet bevestigd';
+    });
 
 }
 
@@ -633,6 +684,19 @@ document
             toonCollecte(button.dataset.collecteTab);
         });
     });
+
+document
+    .querySelectorAll('[data-open-collecte]')
+    .forEach(button => {
+        button.addEventListener('click', () => {
+            toonCollecte(button.dataset.openCollecte);
+        });
+    });
+
+const gewensteTab = new URLSearchParams(window.location.search).get('tab');
+if (gewensteTab === 'afronding') {
+    toonCollecte('afronding');
+}
 
 
 function toonBevestigingsfout(bericht) {
@@ -680,10 +744,16 @@ document
                 panel.dataset.confirmed = 'true';
                 button.hidden = true;
                 panel.querySelector(`[data-edit-collecte="${n}"]`).hidden = false;
+                const summaryStatus = document.querySelector(
+                    `[data-summary-status="${n}"]`
+                );
+                summaryStatus.dataset.confirmed = 'true';
                 document.querySelector(
                     `[data-collecte-tab="${n}"] [data-status-label]`
                 ).textContent = '✓ Bevestigd';
                 document.getElementById('collecteNotice').hidden = true;
+                berekenAlles();
+                toonCollecte('afronding');
             } catch (error) {
                 toonCollecteBevestigingsfout(error.message);
             }
@@ -713,10 +783,16 @@ document
                 panel.dataset.confirmed = 'false';
                 button.hidden = true;
                 panel.querySelector(`[data-confirm-collecte="${n}"]`).hidden = false;
+                const summaryStatus = document.querySelector(
+                    `[data-summary-status="${n}"]`
+                );
+                summaryStatus.dataset.confirmed = 'false';
                 document.querySelector(
                     `[data-collecte-tab="${n}"] [data-status-label]`
                 ).textContent = '';
                 document.getElementById('collecteNotice').hidden = true;
+                berekenAlles();
+                toonCollecte('afronding');
             } catch (error) {
                 toonCollecteBevestigingsfout(error.message);
             }

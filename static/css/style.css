@@ -181,7 +181,7 @@
 /* Telformulier: collecteselectie, bevestiging en mobiel invoeren */
 .collecte-tabs {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -211,6 +211,12 @@
     color: #526575;
 }
 
+.collecte-tab-afronding {
+    background: #fff;
+    color: var(--green2);
+    border-color: var(--line);
+}
+
 .collecte-tab[aria-selected="true"] {
     border-color: currentColor;
     box-shadow: 0 0 0 2px rgba(20, 83, 45, .12);
@@ -231,6 +237,50 @@
 
 .collecte-panel[hidden] {
     display: none;
+}
+
+.afronding-panel h3 {
+    margin-top: 24px;
+}
+
+.afronding-collectes {
+    display: grid;
+    gap: 10px;
+}
+
+.afronding-collecte {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 13px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+}
+
+.afronding-collecte > div strong,
+.afronding-collecte > div span {
+    display: block;
+}
+
+.afronding-collecte > div span,
+.afronding-status {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.afronding-collecte > strong {
+    color: var(--green);
+    white-space: nowrap;
+}
+
+.afronding-totalen {
+    margin-bottom: 18px;
+}
+
+.afronding-totalen dd {
+    font-weight: 800;
 }
 
 .collecte-bevestiging {
@@ -278,5 +328,14 @@
     .collecte-bevestiging {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .afronding-collecte {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .afronding-collecte .btn {
+        grid-column: 1 / -1;
+        width: 100%;
     }
 }

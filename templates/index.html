@@ -6,7 +6,6 @@
     <p>Twee vaste collectes en, wanneer nodig, twee extra collectes. De app rekent alles direct uit en bewaart de telling.</p>
     <div class="actions">
         <a class="btn" href="/tellen?datum={{ vandaag }}">Telling starten</a>
-        <a class="btn secondary" href="/excel">Excel-overzicht</a>
     </div>
 </section>
 
@@ -14,8 +13,8 @@
     <h2>Vandaag</h2>
     <div class="card">
         {% if doel %}
-        <strong>{{ doel.doel_1 }}</strong><span>Collecte 1</span><hr>
-        <strong>{{ doel.doel_2 }}</strong><span>Collecte 2</span>
+        <strong>{{ doel.doel_1 }}</strong><span>Collecte D</span><hr>
+        <strong>{{ doel.doel_2 }}</strong><span>Collecte K</span>
         {% if doel.doel_3 %}<hr><strong>{{ doel.doel_3 }}</strong><span>Collecte 3 · extra</span>{% endif %}
         {% if doel.doel_4 %}<hr><strong>{{ doel.doel_4 }}</strong><span>Collecte 4 · extra</span>{% endif %}
         {% else %}

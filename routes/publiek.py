@@ -254,6 +254,7 @@ def home(request: Request):
 def tellen(
     request: Request,
     datum: str | None = None,
+    fout: str | None = None,
 ):
 
     datum = (
@@ -352,6 +353,7 @@ def tellen(
             "bestaand": bestaand,
             "collecties": collecties,
             "bevestigingen": bevestigingen,
+            "fout": fout,
         },
     )
 
@@ -477,7 +479,45 @@ def telling_opslaan(
             ),
         )
 
+        gebruikte_collectes = {1, 2}
+        if doel_3.strip():
+            gebruikte_collectes.add(3)
+        if doel_4.strip():
+            gebruikte_collectes.add(4)
+
+        bevestigde_collectes = {
+            row["collecte"]
+            for row in db.execute(
+                """
+                SELECT collecte
+                FROM collecte_bevestigingen
+                WHERE datum=?
+                """,
+                (datum,),
+            ).fetchall()
+        }
+        ontbrekend = gebruikte_collectes - bevestigde_collectes
+
         db.commit()
+
+    if ontbrekend:
+        namen = {
+            1: "Collecte D",
+            2: "Collecte K",
+            3: "Collecte 3",
+            4: "Collecte 4",
+        }
+        nog_te_bevestigen = ", ".join(
+            namen[nummer]
+            for nummer in sorted(ontbrekend)
+        )
+        return RedirectResponse(
+            (
+                f"/tellen?datum={quote_plus(datum)}&tab=afronding&fout="
+                f"{quote_plus('Bevestig eerst: ' + nog_te_bevestigen + '.')}"
+            ),
+            status_code=303,
+        )
 
     return RedirectResponse(
         f"/controle/{datum}",
