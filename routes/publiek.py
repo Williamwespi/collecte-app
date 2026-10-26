@@ -725,7 +725,7 @@ def doelen(
             """
             SELECT *
             FROM collectedoelen
-            ORDER BY datum DESC
+            ORDER BY datum ASC
             """
         ).fetchall()
 
@@ -749,15 +749,11 @@ def doel_opslaan(
 
     datum: str = Form(...),
 
-    doelcode_1: str = Form(...),
     doel_1: str = Form(...),
 
-    doelcode_2: str = Form(...),
     doel_2: str = Form(...),
 
-    doelcode_3: str = Form(""),
     doel_3: str = Form(""),
-    doelcode_4: str = Form(""),
     doel_4: str = Form(""),
 ):
 
@@ -767,40 +763,25 @@ def doel_opslaan(
             """
             INSERT INTO collectedoelen(
                 datum,
-                doelcode_1,
                 doel_1,
-                doelcode_2,
                 doel_2,
-                doelcode_3,
                 doel_3,
-                doelcode_4,
                 doel_4
             )
-            VALUES(?,?,?,?,?,?,?,?,?)
+            VALUES(?,?,?,?,?)
 
             ON CONFLICT(datum)
             DO UPDATE SET
-                doelcode_1=excluded.doelcode_1,
                 doel_1=excluded.doel_1,
-                doelcode_2=excluded.doelcode_2,
                 doel_2=excluded.doel_2,
-                doelcode_3=excluded.doelcode_3,
                 doel_3=excluded.doel_3,
-                doelcode_4=excluded.doelcode_4,
                 doel_4=excluded.doel_4
             """,
             (
                 datum,
-
-                doelcode_1.strip(),
                 doel_1.strip(),
-
-                doelcode_2.strip(),
                 doel_2.strip(),
-
-                doelcode_3.strip(),
                 doel_3.strip(),
-                doelcode_4.strip(),
                 doel_4.strip(),
             ),
         )
@@ -935,33 +916,9 @@ async def doelen_importeren(
 
         ws = wb.active
 
-        # ----------------------------------------------------
-        # We lezen bewust op kolompositie.
-        #
-        # A = Datum, followed by alternating code and description columns.
-        #
-        # Dit is nodig omdat "Doel" vier keer voorkomt.
-        # ----------------------------------------------------
-
-        verwachte_headers_3 = [
-            "datum",
-            "doel",
-            "collecte 1",
-            "doel",
-            "collecte 2",
-            "doel",
-            "collecte 3",
-        ]
-
-        verwachte_headers_4 = [
-            *verwachte_headers_3,
-            "doel",
-            "collecte 4",
-        ]
-
         werkelijke_headers = []
 
-        for kolom in range(1, 10):
+        for kolom in range(1, ws.max_column + 1):
 
             waarde = ws.cell(
                 1,
@@ -979,22 +936,39 @@ async def doelen_importeren(
         while werkelijke_headers and not werkelijke_headers[-1]:
             werkelijke_headers.pop()
 
-        if (
-            werkelijke_headers != verwachte_headers_3
-            and werkelijke_headers != verwachte_headers_4
-        ):
+        omschrijving_headers = {
+            tuple(["datum", "collecte 1", "collecte 2"]): (2, 3),
+            tuple(["datum", "collecte 1", "collecte 2", "collecte 3"]): (2, 3, 4),
+            tuple(["datum", "collecte 1", "collecte 2", "collecte 3", "collecte 4"]): (
+                2, 3, 4, 5
+            ),
+        }
+        legacy_headers = {
+            tuple([
+                "datum", "doel", "collecte 1", "doel", "collecte 2",
+                "doel", "collecte 3",
+            ]): ((2, 4, 6), (3, 5, 7)),
+            tuple([
+                "datum", "doel", "collecte 1", "doel", "collecte 2",
+                "doel", "collecte 3", "doel", "collecte 4",
+            ]): ((2, 4, 6, 8), (3, 5, 7, 9)),
+        }
+
+        header = tuple(werkelijke_headers)
+        if header in omschrijving_headers:
+            doel_kolommen = None
+            omschrijving_kolommen = omschrijving_headers[header]
+        elif header in legacy_headers:
+            doel_kolommen, omschrijving_kolommen = legacy_headers[header]
+        else:
 
             raise ValueError(
-                "De eerste rij moet één van deze formaten bevatten: "
-                "Datum | Doel | Collecte 1 | "
-                "Doel | Collecte 2 | "
-                "Doel | Collecte 3 (optioneel), of "
-                "Doel | Collecte 3 | Doel | Collecte 4"
+                "De eerste rij moet bevatten: Datum | Collecte 1 | "
+                "Collecte 2, eventueel aangevuld met Collecte 3 en Collecte 4. "
+                "Bestaande bestanden met Doel-codekolommen blijven ook geldig."
             )
 
-        heeft_vierde_import = (
-            werkelijke_headers == verwachte_headers_4
-        )
+        aantal_collectes = len(omschrijving_kolommen)
 
         aantal = 0
 
@@ -1009,50 +983,29 @@ async def doelen_importeren(
                     ws.cell(rij, 1).value
                 )
 
-                doelcode_1 = excel_tekst(
-                    ws.cell(rij, 2).value
+                omschrijvingen = [
+                    excel_tekst(ws.cell(rij, kolom).value)
+                    for kolom in omschrijving_kolommen
+                ]
+                doelcodes = (
+                    [
+                        excel_tekst(ws.cell(rij, kolom).value)
+                        for kolom in doel_kolommen
+                    ]
+                    if doel_kolommen
+                    else [""] * aantal_collectes
                 )
-
-                doel_1 = excel_tekst(
-                    ws.cell(rij, 3).value
-                )
-
-                doelcode_2 = excel_tekst(
-                    ws.cell(rij, 4).value
-                )
-
-                doel_2 = excel_tekst(
-                    ws.cell(rij, 5).value
-                )
-
-                doelcode_3 = excel_tekst(
-                    ws.cell(rij, 6).value
-                )
-
-                doel_3 = excel_tekst(
-                    ws.cell(rij, 7).value
-                )
-
-                doelcode_4 = excel_tekst(
-                    ws.cell(rij, 8).value
-                )
-
-                doel_4 = excel_tekst(
-                    ws.cell(rij, 9).value
-                )
+                doelcodes = [
+                    code if omschrijving else ""
+                    for code, omschrijving in zip(doelcodes, omschrijvingen)
+                ]
 
                 # Helemaal lege regel overslaan
 
                 if (
                     raw_datum is None
-                    and not doelcode_1
-                    and not doel_1
-                    and not doelcode_2
-                    and not doel_2
-                    and not doelcode_3
-                    and not doel_3
-                    and not doelcode_4
-                    and not doel_4
+                    and not any(doelcodes)
+                    and not any(omschrijvingen)
                 ):
 
                     continue
@@ -1062,84 +1015,53 @@ async def doelen_importeren(
                     rij,
                 )
 
-                if not doelcode_1:
-
-                    raise ValueError(
-                        f"Doel voor collecte 1 "
-                        f"ontbreekt op rij {rij}."
-                    )
-
-                if not doel_1:
+                if not omschrijvingen[0]:
 
                     raise ValueError(
                         f"Collecte 1 ontbreekt "
                         f"op rij {rij}."
                     )
 
-                if not doelcode_2:
-
-                    raise ValueError(
-                        f"Doel voor collecte 2 "
-                        f"ontbreekt op rij {rij}."
-                    )
-
-                if not doel_2:
+                if len(omschrijvingen) < 2 or not omschrijvingen[1]:
 
                     raise ValueError(
                         f"Collecte 2 ontbreekt "
                         f"op rij {rij}."
                     )
 
-                # Collecte 3 is optioneel.
-                # Als één van beide is ingevuld,
-                # moeten beide ingevuld zijn.
-
-                if (
-                    bool(doelcode_3)
-                    != bool(doel_3)
-                ):
-
-                    raise ValueError(
-                        f"Vul op rij {rij} voor "
-                        f"collecte 3 zowel Doel "
-                        f"als Collecte 3 in."
-                    )
-
-                if (
-                    bool(doelcode_4)
-                    != bool(doel_4)
-                ):
-                    raise ValueError(
-                        f"Vul op rij {rij} voor "
-                        f"collecte 4 zowel Doel "
-                        f"als Collecte 4 in."
-                    )
-
                 kolommen = [
                     "datum",
-                    "doelcode_1",
                     "doel_1",
-                    "doelcode_2",
                     "doel_2",
-                    "doelcode_3",
                     "doel_3",
                 ]
                 waarden = [
                     datum,
-                    doelcode_1,
-                    doel_1,
-                    doelcode_2,
-                    doel_2,
-                    doelcode_3,
-                    doel_3,
+                    omschrijvingen[0],
+                    omschrijvingen[1],
+                    omschrijvingen[2] if len(omschrijvingen) > 2 else "",
                 ]
 
-                if heeft_vierde_import:
-                    kolommen.extend(("doelcode_4", "doel_4"))
-                    waarden.extend((doelcode_4, doel_4))
+                if aantal_collectes == 4:
+                    kolommen.append("doel_4")
+                    waarden.append(omschrijvingen[3])
+
+                if doel_kolommen:
+                    code_kolommen = [
+                        f"doelcode_{nummer}"
+                        for nummer in range(1, aantal_collectes + 1)
+                    ]
+                    kolommen.extend(code_kolommen)
+                    waarden.extend(doelcodes)
 
                 updates = ",".join(
-                    f"{kolom}=excluded.{kolom}"
+                    (
+                        f"{kolom}=CASE WHEN excluded.{kolom}='' "
+                        f"THEN collectedoelen.{kolom} "
+                        f"ELSE excluded.{kolom} END"
+                        if kolom.startswith("doelcode_")
+                        else f"{kolom}=excluded.{kolom}"
+                    )
                     for kolom in kolommen
                     if kolom != "datum"
                 )
@@ -1192,13 +1114,9 @@ def doelen_voorbeeld():
     ws.append(
         [
             "Datum",
-            "Doel",
             "Collecte 1",
-            "Doel",
             "Collecte 2",
-            "Doel",
             "Collecte 3",
-            "Doel",
             "Collecte 4",
         ]
     )
@@ -1208,12 +1126,8 @@ def doelen_voorbeeld():
     ws.append(
         [
             date(jaar, 1, 4),
-            "101",
             "Kerk",
-            "201",
             "Diaconie",
-            "",
-            "",
             "",
             "",
         ]
@@ -1222,13 +1136,9 @@ def doelen_voorbeeld():
     ws.append(
         [
             date(jaar, 1, 11),
-            "101",
             "Kerk",
-            "201",
             "Diaconie",
-            "301",
             "Extra doel",
-            "401",
             "Vierde doel",
         ]
     )
@@ -1247,14 +1157,10 @@ def doelen_voorbeeld():
 
     for column, width in {
         "A": 16,
-        "B": 14,
+        "B": 34,
         "C": 34,
-        "D": 14,
+        "D": 34,
         "E": 34,
-        "F": 14,
-        "G": 34,
-        "H": 14,
-        "I": 34,
     }.items():
         ws.column_dimensions[column].width = width
 

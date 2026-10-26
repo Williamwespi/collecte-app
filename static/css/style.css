@@ -46,7 +46,7 @@
 
 .doel-rij {
     display: grid;
-    grid-template-columns: 170px 160px minmax(260px, 1fr);
+    grid-template-columns: 170px minmax(260px, 1fr);
     gap: 20px;
     align-items: end;
 
@@ -110,15 +110,9 @@
     margin: 0;
 }
 
-.doel-code input,
 .doel-omschrijving input {
     margin-top: 6px;
 }
-
-.doel-code input {
-    font-weight: 700;
-}
-
 
 /* OPTIONELE DERDE COLLECTE */
 
@@ -169,7 +163,6 @@
         margin-bottom: 2px;
     }
 
-    .doel-code,
     .doel-omschrijving {
         width: 100%;
     }

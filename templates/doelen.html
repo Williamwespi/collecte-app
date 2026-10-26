@@ -38,8 +38,7 @@
     <h2>Collectedoelen importeren</h2>
 
     <p>
-        Upload een Excelbestand met per collecte een
-        <strong>doelcode</strong> en een <strong>omschrijving</strong>.
+        Upload een Excelbestand met per collecte een omschrijving.
         Collectes 3 en 4 zijn optioneel. Bestaande datums worden bijgewerkt.
     </p>
 
@@ -125,19 +124,6 @@
             </div>
 
 
-            <label class="doel-code">
-
-                Doel
-
-                <input
-                    name="doelcode_1"
-                    required
-                    placeholder="Bijv. D"
-                >
-
-            </label>
-
-
             <label class="doel-omschrijving">
 
                 Collecte
@@ -169,19 +155,6 @@
                 </div>
 
             </div>
-
-
-            <label class="doel-code">
-
-                Doel
-
-                <input
-                    name="doelcode_2"
-                    required
-                    placeholder="Bijv. K"
-                >
-
-            </label>
 
 
             <label class="doel-omschrijving">
@@ -217,17 +190,6 @@
             </div>
 
 
-            <label class="doel-code">
-
-                Doel
-
-                <input
-                    name="doelcode_3"
-                >
-
-            </label>
-
-
             <label class="doel-omschrijving">
 
                 Collecte
@@ -257,17 +219,6 @@
                 </div>
 
             </div>
-
-
-            <label class="doel-code">
-
-                Doelcode
-
-                <input
-                    name="doelcode_4"
-                >
-
-            </label>
 
 
             <label class="doel-omschrijving">
@@ -324,17 +275,11 @@
             <small>
 
                 1.
-                {% if r.doelcode_1 %}
-                    {{ r.doelcode_1 }} ·
-                {% endif %}
                 {{ r.doel_1 }}
 
                 &nbsp;&nbsp;
 
                 2.
-                {% if r.doelcode_2 %}
-                    {{ r.doelcode_2 }} ·
-                {% endif %}
                 {{ r.doel_2 }}
 
                 {% if r.doel_3 %}
@@ -342,9 +287,6 @@
                     &nbsp;&nbsp;
 
                     3.
-                    {% if r.doelcode_3 %}
-                        {{ r.doelcode_3 }} ·
-                    {% endif %}
                     {{ r.doel_3 }}
 
                 {% endif %}
@@ -354,9 +296,6 @@
                     &nbsp;&nbsp;
 
                     4.
-                    {% if r.doelcode_4 %}
-                        {{ r.doelcode_4 }} ·
-                    {% endif %}
                     {{ r.doel_4 }}
 
                 {% endif %}
